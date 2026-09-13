@@ -235,9 +235,22 @@ def font_resources(font_key, paths):
         path = Path(path)
         with TTFont(path) as font:
             coverage = ''.join(chr(code) for code in sorted(font.getBestCmap()))
+            radical = None
+            glyph_name = font.getBestCmap().get(ord('√'))
+            if glyph_name:
+                from fontTools.pens.boundsPen import BoundsPen
+                from fontTools.pens.svgPathPen import SVGPathPen
+                glyphs = font.getGlyphSet()
+                bounds = BoundsPen(glyphs)
+                outline = SVGPathPen(glyphs)
+                glyphs[glyph_name].draw(bounds)
+                glyphs[glyph_name].draw(outline)
+                if bounds.bounds:
+                    radical = {'path': outline.getCommands(), 'bounds': bounds.bounds}
         profile_path = path.with_suffix('.handwriting.json')
         profile = json.loads(profile_path.read_text()) if profile_path.exists() else None
-        resources['HandwritingFont' + suffix] = {'coverage': coverage, 'profile': profile}
+        resources['HandwritingFont' + suffix] = {'coverage': coverage, 'profile': profile,
+                                               'radical': radical}
     return resources
 
 

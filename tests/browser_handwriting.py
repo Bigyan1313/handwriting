@@ -109,6 +109,25 @@ def main():
             assert ('µ', 'μ') in aliases and ('𝛍', 'μ') in aliases, aliases
             return glyphs
 
+        radical_text = r'''Problem 1
+$$x=\frac{-b\pm\sqrt{b^2-4ac}}{2a}$$
+$$\sqrt{1+\sqrt{x}}+\sqrt[3]{\frac{x}{y}}$$
+$$\sum_{i=1}^n i+\int_0^1 x^2 dx$$
+'''
+        report = render(radical_text)
+        check_semantics()
+        assert page.locator('.page .hand-radical').count() == 4
+        assert len(report['handwriting']['radicals']) == 4
+        assert page.locator('.page .sqrt .hand-glyph[data-font]').count() > 0
+        assert page.locator('.page .op-symbol .hand-glyph[data-font]').count() >= 2
+        allowed = {postscript_name(path) for path in FONTS}
+        for uses in actual_fonts(page, '.page .sqrt .hand-glyph[data-font], .page .op-symbol .hand-glyph[data-font]'):
+            assert uses and all(font['postScriptName'] in allowed for font in uses), uses
+        assert page.locator('.page .hand-radical').evaluate_all('''nodes => nodes.every(n => {
+          const r = n.getBoundingClientRect();
+          return r.width > 0 && r.height > 0 && n.querySelector('path').getAttribute('d');
+        })''')
+
         for fonts in ([FONT_A], FONTS):
             report = render(GLYPH_TEXT, fonts=fonts)
             check_semantics()

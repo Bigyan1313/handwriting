@@ -25,7 +25,7 @@ function decorateLetters(root, random, math) {
   while ((node = walker.nextNode())) {
     const parent = node.parentElement;
     if (!node.textContent.trim() || !parent || parent.closest('.hand-glyph, .katex-mathml, svg')) continue;
-    if (math && parent.closest('.delimsizing, .op-symbol, .stretchy, .sqrt-sign, .accent-body, .svg-align, .nulldelimiter')) continue;
+    if (math && parent.closest('.delimsizing, .stretchy, .sqrt-sign, .accent-body, .nulldelimiter')) continue;
     nodes.push(node);
   }
   for (const text of nodes) {
@@ -206,9 +206,50 @@ function decorateMath(root) {
   decorateLetters(content, random, true);
   decorateVectors(root, random);
   decorateBrackets(root, random);
+  decorateRadicals(root, random);
+  const stroke = referenceStroke(root);
+  if (stroke) root.querySelectorAll('.frac-line').forEach(line => {
+    line.style.borderBottomWidth = stroke + 'px';
+    line.dataset.handwrittenRule = 'true';
+  });
+}
+
+function decorateRadicals(root, random) {
+  const families = Object.keys(fontData).filter(name => fontData[name].radical);
+  if (!families.length) return;
+  // Keep KaTeX's root/index layout, replacing only its visible radical drawing.
+  for (const radical of root.querySelectorAll('.sqrt')) {
+    const tail = Array.from(radical.querySelectorAll('.hide-tail')).find(
+      el => el.closest('.sqrt') === radical);
+    if (!tail || tail.querySelector('.hand-radical')) continue;
+    const original = Array.from(tail.children).find(el => el.tagName.toLowerCase() === 'svg');
+    if (!original) continue;
+    const rect = tail.getBoundingClientRect();
+    if (!rect.width || !rect.height) continue;
+    const family = families[Math.floor(random() * families.length)];
+    const shape = fontData[family].radical;
+    const [left, bottom, right, top] = shape.bounds;
+    const fs = parseFloat(getComputedStyle(tail).fontSize);
+    const stroke = referenceStroke(root) || fs * .04;
+    const width = Math.min(rect.width, fs * .83);
+    const height = Math.max(stroke * 2, rect.height - stroke);
+    const svg = makeSvg(rect.width, rect.height, 'hand-radical');
+    svg.dataset.sampleFamily = family;
+    svg.style.left = '0'; svg.style.top = '0';
+    const path = document.createElementNS(svgNS, 'path');
+    path.setAttribute('d', shape.path);
+    const sx = width / (right-left), sy = height / (top-bottom);
+    path.setAttribute('transform', `matrix(${sx},0,0,${-sy},${-left*sx},${top*sy+stroke/2})`);
+    path.style.setProperty('fill', 'currentColor', 'important');
+    svg.append(path);
+    addStroke(svg, [[width-stroke, stroke/2], [rect.width-stroke/2, stroke/2]], stroke);
+    tail.style.position = 'relative';
+    original.style.visibility = 'hidden';
+    tail.append(svg);
+  }
 }
 function auditHandwriting() {
-  const audit = {fallbacks: [], structural: [], aliases: [], fonts: {}, brackets: [], vectors: []};
+  const audit = {fallbacks: [], structural: [], aliases: [], fonts: {}, brackets: [], vectors: [], radicals: []};
   function context(el) { return el.closest('[data-tex]')?.dataset.tex || el.closest('.hand-line')?.textContent || el.textContent; }
   document.querySelectorAll('.page .hand-glyph').forEach(el => {
     if (el.closest('[style*="visibility: hidden"]')) return;
@@ -220,8 +261,9 @@ function auditHandwriting() {
   document.querySelectorAll('.page [data-handwriting-issue]').forEach(el => audit.structural.push({context: context(el), reason: el.dataset.handwritingIssue}));
   document.querySelectorAll('.page .hand-bracket').forEach(el => audit.brackets.push({character: el.dataset.character, family: el.dataset.sampleFamily, height: Number(el.getAttribute('height')), stroke: Number(el.getAttribute('stroke-width')), referenceStroke: Number(el.dataset.referenceStroke), context: context(el)}));
   document.querySelectorAll('.page .hand-vector-arrow').forEach(el => audit.vectors.push({family:el.dataset.sampleFamily,context:context(el)}));
+  document.querySelectorAll('.page .hand-radical').forEach(el => audit.radicals.push({family:el.dataset.sampleFamily,context:context(el)}));
   document.querySelectorAll('.page .op-symbol, .page .sqrt-sign, .page .stretchy').forEach(el => {
-    if (!el.closest('.accent-body')) audit.structural.push({context:context(el),reason:'structural mathematical drawing retains KaTeX geometry'});
+    if (!el.closest('.accent-body') && !el.querySelector('.hand-glyph[data-font], .hand-radical')) audit.structural.push({context:context(el),reason:'structural mathematical drawing retains KaTeX geometry'});
   });
   layoutReport.handwriting = audit;
 }

@@ -31,6 +31,9 @@ It also uses any B, C, and D font variants in that folder, along with their
 adjacent `.handwriting.json` profiles, for your alternate letters, brackets,
 and arrows. Leave **Use handwriting for math characters** enabled to use your
 handwriting for equations too. Symbols absent from your samples stay typeset.
+Square roots use the radical outline from your actual font; root bars and
+fraction bars match the sample profile's pen weight. Letters inside roots,
+summation signs, and integral signs also use your font when those glyphs exist.
 The editor shows typed text; your handwriting appears in the saved PDF.
 Personal font files stay local and are not included in the GitHub repository.
 Without them, the app offers the bundled handwriting styles.
@@ -241,7 +244,7 @@ MathML. Distinct mathematical alphabets such as blackboard bold retain their mea
 font-use counts, bracket pen widths, and vector sample choices. Missing characters
 are retained and reported with their Unicode values and context. The supplied fonts
 currently lack `#` and the em dash `—`; these remain explicit fallbacks. Structural
-items such as large operators, radicals, and non-vector accents are identified
+items that still require typeset geometry, such as non-vector accents, are identified
 separately. Browser tests check actual selected fonts through Chromium, not just CSS.
 
 The calibrated sample files are `custom_font/output/BigyanHand-*.handwriting.json`.
