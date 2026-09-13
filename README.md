@@ -25,6 +25,16 @@ Python distribution that includes Tk.
 2. Choose a handwriting style and whether to use handwriting for math characters.
 3. Click **Save handwritten PDF…**, then **Open PDF** to view or print it.
 
+If your supplied `BigyanHand-A.ttf` (or `BigyanHand.ttf`) is present in
+`custom_font/output/`, the app selects **My handwriting (Bigyan)** by default.
+It also uses any B, C, and D font variants in that folder, along with their
+adjacent `.handwriting.json` profiles, for your alternate letters, brackets,
+and arrows. Leave **Use handwriting for math characters** enabled to use your
+handwriting for equations too. Symbols absent from your samples stay typeset.
+The editor shows typed text; your handwriting appears in the saved PDF.
+Personal font files stay local and are not included in the GitHub repository.
+Without them, the app offers the bundled handwriting styles.
+
 Supported inputs are UTF-8 `.txt`, `.md`, and `.tex` files containing prose and
 LaTeX math snippets. Use `$...$` for inline math and `$$...$$` or fenced `math`
 blocks for display equations. Full LaTeX documents (`\documentclass`, packages,
