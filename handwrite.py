@@ -110,6 +110,22 @@ def paper_layout(paper_path: str, font_path: str, font_size: int):
     }, rules
 
 
+def first_rule_offset(font_path, font_size: int, line_height: int) -> float:
+    """Top padding that lands the first baseline on a rule of the *generated*
+    ruled paper.
+
+    The generated background paints its rule in the last pixel of each
+    line-height band, so rule centres sit half a pixel above each multiple of
+    the spacing. Without this the writing keeps the right pitch but sits at the
+    wrong phase, floating a constant distance above every rule. It is the same
+    correction paper_layout() already makes for a supplied page.
+    """
+    asc, desc, upem = font_vmetrics(str(font_path))
+    content_h = font_size * (asc + desc) / upem
+    baseline_in_box = (line_height - content_h) / 2.0 + font_size * asc / upem
+    return (line_height - 0.5 - baseline_in_box) % line_height
+
+
 def _face(family: str, path: str) -> str:
     b64 = base64.b64encode(Path(path).read_bytes()).decode()
     return f"""
@@ -313,7 +329,12 @@ def build_html(blocks, font_key: str, seed: int, jitter: bool, custom_font_path:
 
     page_width = paper['page_w_in'] * 96 if paper else 816
     page_height = paper['page_h_in'] * 96 if paper else 1056
-    base_top = paper['pad_top'] if paper else 0
+    if paper:
+        base_top = paper['pad_top']
+    else:
+        base_top = first_rule_offset(
+            custom_font_path or FONT_DIR / FONTS[font_key]['regular'],
+            font_size, line_height)
     body_paint = body_bg_css if body_bg_css else """  padding: var(--top-pad) 110px 60px calc(var(--margin-col) + 28px);
   background-color: #fbf9f2;
   background-image:

@@ -53,7 +53,7 @@ as JSON. **Browser to Python** is one JSON object, `window.__layoutReport`.
 
 | File | Lines | Responsibility |
 |---|---|---|
-| `handwrite.py` | 731 | CLI, font embedding, paper geometry, the HTML document template, Playwright driving. About half is one f-string. |
+| `handwrite.py` | 752 | CLI, font embedding, paper geometry, the HTML document template, Playwright driving. About half is one f-string. |
 | `clean.py` | 296 | Messy-paste repair, block parsing, inline segmentation, safe equation splitting. Pure functions, no I/O. |
 | `handwriting.js` | 269 | Per-glyph font selection from coverage sets; redraws brackets, vector arrows and radicals as SVG; writes the handwriting audit. |
 | `app.py` | 168 | Tkinter editor. Renders on a worker thread, polls a queue, surfaces cleanup notes as a warning dialog. |
@@ -181,19 +181,25 @@ constant factor than it needs.
   `personal_font_options()` now live in `hands.py`, which imports no GUI
   toolkit, and the test suite runs on a machine without Tk.
 
-## Open defect
+## Sitting on the rules
 
-The generated ruled paper has the correct line pitch but the wrong phase.
-Measured against the rule grid in the output PDF, every prose baseline sits a
-constant ~11pt above the nearest rule instead of resting on it:
+Writing has to rest *on* a ruled line, not merely repeat at its pitch — pitch
+without phase is what makes output read as a font on a grid rather than as
+handwriting.
 
-```
-rules     at y = 0, 30, 60, 90, 120 ... pt   (exactly 30pt, correct)
-baselines at 108.9, 137.6, 168.1, 199.4, 229.1, 258.3 pt
-offset from nearest rule: 11.1, 12.4, 11.9, 10.6, 10.9, 11.7 pt
-```
+Both paper paths now carry the correction. For a supplied page,
+`paper_layout()` derives it from the detected first rule
+(`pad_top = first_line - baseline_in_box`). For the generated paper,
+`first_rule_offset()` derives it from the font's own vertical metrics and the
+rule spacing: the background paints its rule in the last pixel of each
+line-height band, so rule centres sit half a pixel above each multiple of the
+spacing, and the padding is whatever shifts the first baseline onto one.
 
-`paper_layout()` already computes this correction for user-supplied paper
-(`pad_top = first_line - baseline_in_box`, from half-leading plus ascent); the
-generated-paper path never applies it, and `.page` padding-top carries no
-baseline term. It is the highest-visibility fix in the codebase for its size.
+Both are computed from metrics, never tuned by eye — a hardcoded offset is
+wrong the moment the font or the size changes. `tests/test_ruled_paper.py`
+asserts the invariant across every bundled font at four size/leading pairs.
+
+Residual deviation in a rendered PDF is the deliberate per-line jitter
+(a translate of up to ±1.5px plus a small rotation), so baselines scatter
+within roughly 2.5pt of the rules rather than landing exactly. That scatter is
+centred on zero; a systematic offset is the bug.
