@@ -53,11 +53,13 @@ as JSON. **Browser to Python** is one JSON object, `window.__layoutReport`.
 
 | File | Lines | Responsibility |
 |---|---|---|
-| `handwrite.py` | 752 | CLI, font embedding, paper geometry, the HTML document template, Playwright driving. About half is one f-string. |
+| `handwrite.py` | 612 | CLI, font embedding, paper geometry, the HTML document template, Playwright driving. About half is one f-string. |
 | `clean.py` | 296 | Messy-paste repair, block parsing, inline segmentation, safe equation splitting. Pure functions, no I/O. |
 | `handwriting.js` | 269 | Per-glyph font selection from coverage sets; redraws brackets, vector arrows and radicals as SVG; writes the handwriting audit. |
 | `app.py` | 168 | Tkinter editor. Renders on a worker thread, polls a queue, surfaces cleanup notes as a warning dialog. |
-| `layout.js` | 173 | Equation line-splitting, word-atom line breaking, pagination with widow control, the layout report. |
+| `layout.js` | 185 | Equation line-splitting, word-atom line breaking, pagination with widow control, the layout report. |
+| `delimiters.js` | 142 | Swaps KaTeX's stretchy delimiters for handwritten glyphs, and the canvas ink measurement that positions them. |
+| `random.js` | 9 | The one seeded generator every layer draws from, so a `--seed` reproduces a render exactly. |
 | `paper.py` | 114 | Rasterize a page, find ruled lines and the margin rule by pixel coverage, return resolution-independent fractions. |
 | `hands.py` | 163 | Handwriting profile discovery: bundled fonts and your own hand directories, and the flags each needs. GUI-free so it stays testable headless. |
 | `custom_font/` | ~630 | Charset definitions, template generators, glyph extraction, two font-building backends, stroke-profile calibration. |
@@ -89,20 +91,20 @@ tall delimiters as SVG paths rather than glyphs, so they cannot be font-swapped.
 Instead the delimiter is read out of the LaTeX source in order, its box is
 measured, and a traced centreline is scaled to cover it.
 
-## Known structural weak point
+## How the JavaScript is assembled
 
-The three JavaScript layers share implicit globals:
+Every `.js` file is read from disk and concatenated into one `<script>` block,
+in dependency order: `random.js`, `delimiters.js`, `layout.js`,
+`handwriting.js`. Python interpolates **only** configuration objects —
+`layoutConfig`, `handwritingConfig`, `delimiterConfig` — followed by the call
+sequence that runs a render. No JavaScript logic lives in the f-string, so none
+of it needs doubled braces or escaped regex backslashes.
 
-- `handwriting.js` calls `origInk()` and `delimsFromTex()`, which are defined in
-  the f-string inside `handwrite.py`.
-- `layout.js` calls `mkRand()` from the same place, and its first line runs
-  before that function textually appears — it works only because function
-  declarations hoist.
-- `handwriting.js` writes into `layoutReport`, a `const` owned by `layout.js`.
-
-None of the three can be loaded or tested on its own. Extracting the embedded
-delimiter JavaScript into its own file (the pattern `layout.js` and
-`handwriting.js` already follow) resolves this.
+The files still share a runtime: `handwriting.js` calls `origInk()` and
+`delimsFromTex()` from `delimiters.js`, and writes its audit into
+`layoutReport`, which `layout.js` owns. That is deliberate — they compose one
+render — but the load order is now explicit rather than resting on function
+hoisting, and each file can be read on its own.
 
 ## Scaling
 

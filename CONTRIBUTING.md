@@ -39,6 +39,8 @@ Do not commit private documents, handwriting scans, generated PDFs, or credentia
 - `handwrite.py`: fonts, HTML generation, and PDF rendering through Chromium.
 - `layout.js`: measured page layout.
 - `handwriting.js`: handwritten math and glyph selection.
+- `delimiters.js`: handwritten stretchy brackets and their ink measurement.
+- `random.js`: the shared seeded generator.
 - `paper.py`: custom paper detection (PDF backgrounds also need Poppler).
 - `hands.py`: which handwriting styles are available (no GUI dependencies).
 - `custom_font/`: optional tools for building fonts from handwriting samples.
