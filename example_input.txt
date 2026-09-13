@@ -1,0 +1,30 @@
+1.4 #1 — Undefined. The matrix is 3×2 (21.4 #1 — Undefined. The matrix is 3×2 (2 columns) but the vector has 3 entries. To multiply `A\vec x `Axsvg, the number of columns in `A `A has to match the number of entries in `\vec x `xsvg, so this matrix can only be multiplied by a vector with 2 entries.
+1.4 #10
+Vector equation:
+
+```math
+x_1\begin{bmatrix}8\\5\\1\end{bmatrix}+x_2\begin{bmatrix}-1\\4\\-3\end{bmatrix}=\begin{bmatrix}4\\1\\2\end{bmatrix}
+```
+
+x1svg851svg+x2svg−14−3svg=svg412svg
+Matrix equation:
+
+```math
+\begin{bmatrix}8&-1\\5&4\\1&-3\end{bmatrix}\begin{bmatrix}x_1\\x_2\end{bmatrix}=\begin{bmatrix}4\\1\\2\end{bmatrix}
+```
+
+svg851−14−3svg[x1x2]=svg412svg
+1.4 #14 — `\vec u `usvg is in the span of the columns of `A `A exactly when `A\vec x=\vec u `Axsvg=usvg has a solution. Row reduce the augmented matrix:
+
+```math
+\left[\begin{array}{ccc|c}5&8&7&2\\0&1&-1&-3\\1&3&0&2\end{array}\right]\xrightarrow{R_1\leftrightarrow R_3}\left[\begin{array}{ccc|c}1&3&0&2\\0&1&-1&-3\\5&8&7&2\end{array}\right]
+```
+
+svg5018137−102−32svgR1↔R3svgsvg1053180−172−32svg
+
+```math
+\xrightarrow{R_3-5R_1}\left[\begin{array}{ccc|c}1&3&0&2\\0&1&-1&-3\\0&-7&7&-8\end{array}\right]\xrightarrow{R_3+7R_2}\left[\begin{array}{ccc|c}1&3&0&2\\0&1&-1&-3\\0&0&0&-29\end{array}\right]
+```
+
+R3−5R1svgsvg10031−70−172−3−8svgR3+7R2svgsvg1003100−102−3−29svg
+The last row says `0=-29 `0=−29, so the system is inconsistent. `\boxed{\text{No, } \vec u \text{ is not in the span of the columns of } A.}

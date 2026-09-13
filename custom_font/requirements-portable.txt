@@ -1,0 +1,6 @@
+fonttools
+Pillow
+numpy
+potracer
+pymupdf
+reportlab

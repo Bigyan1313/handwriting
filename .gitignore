@@ -1,0 +1,16 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.env.*
+output/
+# Personal handwriting scans, glyphs, and generated fonts stay local.
+my_font/
+custom_font/glyphs*/
+custom_font/brackets_*/
+custom_font/output/
+hw_solutions.txt
+# Historical session notes; public setup instructions live in README.md.
+/PROJECT.md
