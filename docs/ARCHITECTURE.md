@@ -56,12 +56,12 @@ as JSON. **Browser to Python** is one JSON object, `window.__layoutReport`.
 | `handwrite.py` | 731 | CLI, font embedding, paper geometry, the HTML document template, Playwright driving. About half is one f-string. |
 | `clean.py` | 296 | Messy-paste repair, block parsing, inline segmentation, safe equation splitting. Pure functions, no I/O. |
 | `handwriting.js` | 269 | Per-glyph font selection from coverage sets; redraws brackets, vector arrows and radicals as SVG; writes the handwriting audit. |
-| `app.py` | 194 | Tkinter editor. Renders on a worker thread, polls a queue, surfaces cleanup notes as a warning dialog. |
+| `app.py` | 168 | Tkinter editor. Renders on a worker thread, polls a queue, surfaces cleanup notes as a warning dialog. |
 | `layout.js` | 173 | Equation line-splitting, word-atom line breaking, pagination with widow control, the layout report. |
 | `paper.py` | 114 | Rasterize a page, find ruled lines and the margin rule by pixel coverage, return resolution-independent fractions. |
-| `hands.py` | 34 | Which handwriting styles are available, and the flags each needs. GUI-free so it stays testable headless. |
+| `hands.py` | 163 | Handwriting profile discovery: bundled fonts and your own hand directories, and the flags each needs. GUI-free so it stays testable headless. |
 | `custom_font/` | ~630 | Charset definitions, template generators, glyph extraction, two font-building backends, stroke-profile calibration. |
-| `tests/` | 516 | Three unit modules, two browser suites, one visual-acceptance PDF generator. |
+| `tests/` | ~700 | Unit modules, two browser suites, a synthetic-hand fixture generator, one visual-acceptance PDF generator. |
 
 Dependencies are deliberately thin: Playwright drives Chromium, fontTools reads
 vertical metrics and glyph outlines, Pillow and NumPy do ruled-line detection
@@ -168,13 +168,11 @@ constant factor than it needs.
 
 ### E. Foundations that have to hold first
 
-- **Get the handwriting suite into CI.** `tests/browser_handwriting.py` is the
-  deepest test in the project — real Chromium font selection through CDP,
-  semantic MathML preservation, bracket pen-weight consistency, seed
-  determinism. CI never runs it, because it needs personal font files that are
-  correctly gitignored. Checking in a small synthetic test font makes it run
-  everywhere. Until then, changes on every axis above are unguarded in exactly
-  the area that makes this project distinctive.
+- ~~**Get the handwriting suite into CI.**~~ Done — `tests/synthetic_hand.py`
+  builds a deterministic four-variant stand-in (plain geometry, not
+  handwriting) carrying the characters and sample geometry the suite needs, so
+  `tests/browser_handwriting.py` now runs everywhere, including CI. Real
+  personal fonts are still preferred when present.
 - **Extract the embedded JavaScript.** Around 100 lines of delimiter handling
   live inside the Python f-string, needing doubled braces and quadruple-escaped
   regex backslashes. Moving it to its own file also resolves the implicit-global

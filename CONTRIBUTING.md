@@ -21,13 +21,16 @@ On Windows, activate with `.venv\Scripts\activate` instead.
 1. Create a branch: `git switch -c describe-your-change`.
 2. Make a focused change. For larger features, open an issue to discuss the design.
 3. Run `python -m unittest discover -s tests -v`.
-4. For rendering changes, run `python tests/browser_layout.py` and render a sample:
+4. For rendering changes, run `python tests/browser_layout.py` and
+   `python tests/browser_handwriting.py`, then render a sample:
    `python handwrite.py example_input.txt output/example.pdf`.
 5. Open a pull request explaining the problem, resulting behavior, and checks run.
    Include a screenshot for visible changes, using sample text you can share.
 
-Some handwriting checks require personal sample fonts and glyphs. Those files
-are excluded from Git; explain any unavailable checks in your pull request.
+`tests/browser_handwriting.py` uses your personal fonts when they are present
+and otherwise builds a synthetic stand-in, so it runs on any checkout. Some
+font-building checks still require personal glyph samples and skip without
+them; explain any unavailable checks in your pull request.
 Do not commit private documents, handwriting scans, generated PDFs, or credentials.
 
 ## Project structure
