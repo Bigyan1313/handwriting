@@ -40,6 +40,9 @@ Do not commit private documents, handwriting scans, generated PDFs, or credentia
 - `custom_font/`: optional tools for building fonts from handwriting samples.
 - `tests/`: parser, font, and browser checks.
 
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the pieces fit together,
+the reasoning behind the main design decisions, and known limits.
+
 ## Bug reports
 
 Include your operating system, Python version, command or UI steps, expected
