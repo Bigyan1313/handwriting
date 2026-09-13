@@ -59,6 +59,7 @@ as JSON. **Browser to Python** is one JSON object, `window.__layoutReport`.
 | `app.py` | 194 | Tkinter editor. Renders on a worker thread, polls a queue, surfaces cleanup notes as a warning dialog. |
 | `layout.js` | 173 | Equation line-splitting, word-atom line breaking, pagination with widow control, the layout report. |
 | `paper.py` | 114 | Rasterize a page, find ruled lines and the margin rule by pixel coverage, return resolution-independent fractions. |
+| `hands.py` | 34 | Which handwriting styles are available, and the flags each needs. GUI-free so it stays testable headless. |
 | `custom_font/` | ~630 | Charset definitions, template generators, glyph extraction, two font-building backends, stroke-profile calibration. |
 | `tests/` | 516 | Three unit modules, two browser suites, one visual-acceptance PDF generator. |
 
@@ -178,10 +179,9 @@ constant factor than it needs.
   live inside the Python f-string, needing doubled braces and quadruple-escaped
   regex backslashes. Moving it to its own file also resolves the implicit-global
   tangle above.
-- **Decouple the font logic from Tkinter.** `tests/test_app_fonts.py` fails to
-  import on any machine without Tk, because `app.py` imports tkinter at module
-  level while the logic under test is pure path handling. `available_styles()`
-  and `personal_font_options()` belong in a GUI-free module.
+- ~~**Decouple the font logic from Tkinter.**~~ Done — `available_styles()` and
+  `personal_font_options()` now live in `hands.py`, which imports no GUI
+  toolkit, and the test suite runs on a machine without Tk.
 
 ## Open defect
 

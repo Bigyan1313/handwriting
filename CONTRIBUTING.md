@@ -37,6 +37,7 @@ Do not commit private documents, handwriting scans, generated PDFs, or credentia
 - `layout.js`: measured page layout.
 - `handwriting.js`: handwritten math and glyph selection.
 - `paper.py`: custom paper detection (PDF backgrounds also need Poppler).
+- `hands.py`: which handwriting styles are available (no GUI dependencies).
 - `custom_font/`: optional tools for building fonts from handwriting samples.
 - `tests/`: parser, font, and browser checks.
 

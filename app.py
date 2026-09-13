@@ -9,11 +9,9 @@ import webbrowser
 from pathlib import Path
 from tkinter import filedialog, messagebox, scrolledtext, ttk
 
+from hands import PERSONAL_STYLE, available_styles, personal_font_options
+
 HERE = Path(__file__).resolve().parent
-FONTS = ('kalam', 'indieflower', 'patrickhand', 'caveat', 'reeniebeanie',
-         'shadowsintolight', 'gochihand')
-PERSONAL_STYLE = 'My handwriting (Bigyan)'
-PERSONAL_FONT_DIR = HERE / 'custom_font' / 'output'
 SAMPLE = r"""My handwritten notes
 
 Type or paste your text here, or open a text file.
@@ -24,31 +22,6 @@ $$
 x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}
 $$
 """
-
-
-def personal_font_options(directory=None):
-    """Use the supplied personal font and any available alternate letter samples."""
-    directory = Path(directory) if directory is not None else PERSONAL_FONT_DIR
-    primary = directory / 'BigyanHand-A.ttf'
-    if not primary.is_file():
-        primary = directory / 'BigyanHand.ttf'
-    if not primary.is_file():
-        raise FileNotFoundError('Your handwriting font is missing. Restore '
-                                'BigyanHand-A.ttf in custom_font/output and restart the app.')
-    options = ['--custom-font', str(primary), '--font-size', '30', '--line-height', '44']
-    for variant in 'BCD':
-        path = directory / f'BigyanHand-{variant}.ttf'
-        if path.is_file():
-            options.extend([f'--custom-font-{variant.lower()}', str(path)])
-    return options
-
-
-def available_styles():
-    try:
-        personal_font_options()
-    except FileNotFoundError:
-        return FONTS
-    return (PERSONAL_STYLE, *FONTS)
 
 
 def render_document(text, output, font=None, hand_math=True, cleanup=False):
