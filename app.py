@@ -9,7 +9,7 @@ import webbrowser
 from pathlib import Path
 from tkinter import filedialog, messagebox, scrolledtext, ttk
 
-from hands import PERSONAL_STYLE, available_styles, personal_font_options
+from hands import available_styles, find_hand
 
 HERE = Path(__file__).resolve().parent
 SAMPLE = r"""My handwritten notes
@@ -27,7 +27,8 @@ $$
 def render_document(text, output, font=None, hand_math=True, cleanup=False):
     """Render in an isolated process; keep input and intermediate HTML temporary."""
     font = font or available_styles()[0]
-    font_options = personal_font_options() if font == PERSONAL_STYLE else ['--font', font]
+    hand = find_hand(font)
+    font_options = list(hand.options) if hand else ['--font', font]
     with tempfile.TemporaryDirectory(prefix='handwriting-') as directory:
         source = Path(directory) / 'input.txt'
         source.write_text(text, encoding='utf-8')

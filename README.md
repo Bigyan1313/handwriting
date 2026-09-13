@@ -259,3 +259,22 @@ python3 custom_font/stroke_profiles.py --font custom_font/output/BigyanHand-A.tt
 Use brackets B for B/D and `glyphs_math2` for C/D. The profile generator requires
 Pillow, NumPy, and fontTools; SciPy is optional. New checks:
 `python3 tests/browser_handwriting.py` and `python3 tests/render_handwriting_comparison.py`.
+
+### Using several handwritings
+
+A *hand* is a directory of your own traced handwriting. Put one under
+`~/.handwriting/hands/`, and the app offers it alongside the bundled styles:
+
+```
+~/.handwriting/hands/my-hand/
+    hand.json     {"display": "My handwriting", "font_size": 30, "line_height": 44}
+    A.ttf  B.ttf  C.ttf  D.ttf
+```
+
+Only `A` is required; B, C and D are alternate versions of the same hand, used
+so repeated letters are not identical stamps. `hand.json` is optional — without
+it the directory name is the display name. Variants may be named `A.ttf` or
+`<Anything>-A.ttf`, and a single unsuffixed font counts as A, so fonts built by
+`custom_font/` work unchanged. Set `HANDWRITING_HANDS` to read hands from
+another directory as well. Personal hands are offered before the bundled ones,
+so one of yours is selected by default.
