@@ -35,12 +35,12 @@ python3 extract_glyphs.py filled_set2.pdf output/manifest_set2.json  glyphs_set2
 python3 extract_glyphs.py filled_math.pdf output/manifest_math.json  glyphs_math/
 
 # variant A: set 1 + math, and save the metrics
-python3.12 build_font.py output/Hand-A.ttf \
+python3 build_font.py output/Hand-A.ttf \
     --glyphs glyphs_set1 --glyphs glyphs_math \
     --name "Bigyan Hand" --metrics-out output/metrics.json
 
 # variant B: set 2 + math, reusing A's metrics so both are the same size
-python3.12 build_font.py output/Hand-B.ttf \
+python3 build_font.py output/Hand-B.ttf \
     --glyphs glyphs_set2 --glyphs glyphs_math \
     --name "Bigyan Hand B" --metrics-in output/metrics.json
 ```
@@ -49,9 +49,11 @@ python3.12 build_font.py output/Hand-B.ttf \
 its own letters, and the two variants would come out slightly different
 sizes — visible as letters jumping around mid-word.
 
-`build_font.py` **must** run under `python3.12` (that's the interpreter the
-`fontforge` module is built against here); plain `python3` fails with
-`ModuleNotFoundError: fontforge`.
+`build_font.py` runs on a stock `python3` and needs no system packages: the
+default backend vectorizes with `potracer` and assembles the font with
+`fontTools`, both from `requirements-portable.txt`. Pass `--backend fontforge`
+to use FontForge instead, which then has to run under whichever interpreter
+its module was built against.
 
 ## 3. Use
 
@@ -75,7 +77,7 @@ crops tight around what's left.
 `build_font.py` scales every glyph by one shared factor — so the natural
 size differences between your letters survive — places each on the baseline
 by what kind of character it is, vectorizes with `potrace`, and imports the
-outline into a FontForge glyph. Advance widths come from each glyph's own
+outline into a glyph. Advance widths come from each glyph's own
 ink width, so `i` doesn't take as much room as `m`.
 
 Vertical placement is **not** taken from where you wrote in the box. People
@@ -122,11 +124,11 @@ Build all variants using A's existing shared metrics. Earlier glyph directories
 win on duplicate characters, so put replacement brackets first. For example:
 
 ```bash
-python3.12 custom_font/build_font.py custom_font/output/BigyanHand-C.ttf \
+python3 custom_font/build_font.py custom_font/output/BigyanHand-C.ttf \
   --glyphs custom_font/brackets_A --glyphs custom_font/glyphs_set3 \
   --glyphs custom_font/glyphs_math2 --name 'Bigyan Hand C' \
   --metrics-in custom_font/output/metrics.json
-python3.12 custom_font/build_font.py custom_font/output/BigyanHand-D.ttf \
+python3 custom_font/build_font.py custom_font/output/BigyanHand-D.ttf \
   --glyphs custom_font/brackets_B --glyphs custom_font/glyphs_set4 \
   --glyphs custom_font/glyphs_math2 --name 'Bigyan Hand D' \
   --metrics-in custom_font/output/metrics.json
@@ -136,8 +138,9 @@ Rebuild A/B the same way with `glyphs` / `glyphs_set2` and `glyphs_math`, puttin
 `brackets_A` / `brackets_B` first. Two new bracket samples give two distinct bracket
 shapes; the second math set gives two shapes per math symbol, while letters and
 numbers can have four. Sharing a math set across fonts does not create new shapes.
-The font builder requires FontForge, potrace, and its compatible Python interpreter;
-extraction requires Poppler's `pdftoppm` on PATH.
+The font builder and glyph extraction both run on a stock Python with the
+packages in `requirements-portable.txt`; Poppler and FontForge are used when
+present but are not required.
 
 ### Adding the missing # character
 

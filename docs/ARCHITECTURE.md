@@ -177,11 +177,11 @@ constant factor than it needs.
 - **Make it installable.** There is no `pyproject.toml`, so the project cannot
   be pip-installed; the only route in is cloning. A package with a console entry
   point turns this from a repository into a tool.
-- **Drop two system dependencies.** Poppler is needed only to rasterize PDF
-  paper, and `extract_glyphs.py` already falls back to PyMuPDF when `pdftoppm`
-  is absent — applying the same fallback in `paper.py` removes it. The portable
-  potracer backend likewise removes the FontForge and `python3.12` pin; it
-  should be the default rather than the fallback.
+- ~~**Drop two system dependencies.**~~ Done — `paper.py` reads a supplied PDF
+  with PyMuPDF (preferring it over Poppler, so rule detection uses the same
+  rasterizer everywhere), and `build_font.py` defaults to the pure-pip potracer
+  backend with FontForge as an opt-in. Neither is required; a missing reader
+  now says what to install rather than raising.
 - **A service, afterwards.** The core is already an HTML-to-PDF pipeline, which
   maps onto a request handler plus a pool of warm browsers. It needs the browser
   reuse above first, or every request pays cold start. `--seed` determinism

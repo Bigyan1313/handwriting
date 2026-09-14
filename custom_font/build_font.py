@@ -173,7 +173,7 @@ def trace(canvas, pbm_path, svg_path):
     )
 
 
-def build(glyph_dirs, out_path, family_name, metrics_in, metrics_out, backend="auto", base_font=None):
+def build(glyph_dirs, out_path, family_name, metrics_in, metrics_out, backend="portable", base_font=None):
     meta = load_meta(glyph_dirs)
     if not meta:
         sys.exit("No glyphs found.")
@@ -199,12 +199,17 @@ def build(glyph_dirs, out_path, family_name, metrics_in, metrics_out, backend="a
         }, indent=2))
 
     if backend == 'portable' or (backend == 'auto' and fontforge is None) or base_font:
-        from portable_font import build as portable_build
+        try:
+            from portable_font import build as portable_build
+        except ImportError as error:
+            sys.exit(f'The portable backend needs potracer and fonttools: {error}\n'
+                     '    pip install -r custom_font/requirements-portable.txt')
         portable_build(meta, placements, lambda key: glyph_scale(key, meta, placements, scale, cap_height),
                        out_path, family_name, ascent, descent, base_font)
         return
     if fontforge is None:
-        sys.exit('FontForge is unavailable; use --backend portable with potracer and fonttools installed.')
+        sys.exit('FontForge is not importable from this interpreter. Drop --backend '
+                 'fontforge to use the portable backend, which needs no system packages.')
     font = fontforge.font()
     font.encoding = "UnicodeFull"
     font.em = EM
@@ -261,7 +266,8 @@ def main():
     ap.add_argument("--metrics-in", metavar="FILE",
                     help="reuse metrics from a previous build (keeps variants the same size)")
     ap.add_argument("--metrics-out", metavar="FILE", help="write this build's metrics")
-    ap.add_argument('--backend', choices=['auto', 'fontforge', 'portable'], default='auto')
+    ap.add_argument('--backend', choices=['portable', 'fontforge', 'auto'], default='portable',
+                    help='outline backend: portable (default, pure pip) | fontforge | auto')
     ap.add_argument('--base-font', help='patch supplied glyphs in an existing TTF, preserving all other outlines')
     ap.add_argument("--metrics-font", help="match final line-box metrics to this reference TTF")
     args = ap.parse_args()

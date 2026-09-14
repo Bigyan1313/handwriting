@@ -1,3 +1,5 @@
+import inspect
+import json
 import sys
 import tempfile
 import unittest
@@ -91,6 +93,48 @@ class PortableTests(unittest.TestCase):
                 self.assertIn(ord('A'), font.getBestCmap())
                 self.assertIn(0x1D54F, font.getBestCmap())
                 self.assertTrue(any(table.format == 12 for table in font['cmap'].tables))
+
+
+class DefaultBackendTests(unittest.TestCase):
+    """Building a font must not need FontForge, or an interpreter chosen to
+    match it. The portable backend is the default; FontForge is opt-in."""
+
+    def _glyph_dir(self, root):
+        from PIL import Image, ImageDraw
+        from charset import safe_name
+        directory = root / 'glyphs'
+        directory.mkdir()
+        meta = {}
+        for char in 'aA':
+            image = Image.new('L', (60, 80), 255)
+            draw = ImageDraw.Draw(image)
+            draw.line((8, 70, 28, 10, 48, 70), fill=0, width=4)
+            draw.line((16, 47, 40, 47), fill=0, width=4)
+            image.save(directory / (safe_name(char) + '.png'))
+            meta[safe_name(char)] = {'char': char, 'height_px': 60}
+        (directory / 'meta.json').write_text(json.dumps(meta))
+        return directory
+
+    def test_the_default_backend_is_portable(self):
+        import build_font
+        self.assertEqual(
+            inspect.signature(build_font.build).parameters['backend'].default, 'portable')
+
+    @unittest.skipUnless(potrace, 'portable backend requires potracer')
+    def test_a_font_builds_with_no_fontforge_present(self):
+        import build_font
+        self.assertIsNone(build_font.fontforge,
+                          'this check is only meaningful where FontForge is absent')
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            out = root / 'Built.ttf'
+            build_font.build([self._glyph_dir(root)], out, 'Built Hand', None, None)
+            self.assertTrue(out.is_file())
+            from fontTools.ttLib import TTFont
+            with TTFont(out) as font:
+                cmap = font.getBestCmap()
+            self.assertIn(ord('a'), cmap)
+            self.assertIn(ord('A'), cmap)
 
 
 class SupplementalTemplateTests(unittest.TestCase):

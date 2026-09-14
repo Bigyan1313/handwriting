@@ -191,9 +191,10 @@ via `--custom-font path/to/YourFont.ttf` instead of `--font`.
 ## Requirements
 
 Install dependencies with `python -m pip install -r requirements.txt` and the
-browser with `python -m playwright install chromium`. Custom PDF paper backgrounds
-also require Poppler's `pdfinfo` and `pdftoppm` on your PATH. Optional font-building
-dependencies are listed in `custom_font/requirements-portable.txt`.
+browser with `python -m playwright install chromium`. That is everything —
+no system packages. Supplied PDF paper is read with PyMuPDF, which pip installs;
+Poppler is used instead if you happen to have it, but is not required. Optional
+font-building dependencies are listed in `custom_font/requirements-portable.txt`.
 
 ### Natural page layout
 

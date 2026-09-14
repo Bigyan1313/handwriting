@@ -42,7 +42,7 @@ Do not commit private documents, handwriting scans, generated PDFs, or credentia
 - `handwriting.js`: handwritten math and glyph selection.
 - `delimiters.js`: handwritten stretchy brackets and their ink measurement.
 - `random.js`: the shared seeded generator.
-- `paper.py`: custom paper detection (PDF backgrounds also need Poppler).
+- `paper.py`: custom paper detection, and reading a supplied PDF or image page.
 - `hands.py`: which handwriting styles are available (no GUI dependencies).
 - `custom_font/`: optional tools for building fonts from handwriting samples.
 - `tests/`: parser, font, and browser checks.

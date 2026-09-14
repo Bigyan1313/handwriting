@@ -17,7 +17,6 @@ import base64
 import html
 import io
 import json
-import subprocess
 import random
 import sys
 from pathlib import Path
@@ -72,10 +71,9 @@ def paper_layout(paper_path: str, font_path: str, font_size: int):
 
     page_w_in, page_h_in = 8.5, 11.0
     if path.suffix.lower() == ".pdf":
-        out = subprocess.run(["pdfinfo", str(path)], capture_output=True, text=True).stdout
-        m = _re.search(r"Page size:\s+([\d.]+) x ([\d.]+) pts", out)
-        if m:
-            page_w_in, page_h_in = float(m.group(1)) / 72.0, float(m.group(2)) / 72.0
+        size = paperlib.page_size_in(path)
+        if size:
+            page_w_in, page_h_in = size
     else:
         w, h = img.size
         page_h_in = page_w_in * h / w

@@ -2,3 +2,5 @@ playwright>=1.45,<2
 fonttools>=4.50,<5
 Pillow>=10,<13
 numpy>=1.26,<3
+# Reads a supplied PDF page for --paper. Pure pip, so Poppler is not needed.
+pymupdf>=1.24,<2

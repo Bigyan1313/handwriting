@@ -9,6 +9,8 @@ resolution the page came in at:
     first_line     y of the first ruled line
     margin_x       x of the vertical margin rule, if there is one
 """
+import re
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -18,10 +20,48 @@ from PIL import Image
 
 PROBE_DPI = 150
 
+NO_PDF_READER = (
+    "Reading a PDF page needs PyMuPDF or Poppler.\n"
+    "Install one with:  pip install pymupdf\n"
+    "(or install Poppler so pdftoppm and pdfinfo are on your PATH),\n"
+    "or supply the ruled page as a PNG or JPEG instead."
+)
+
+
+def _pymupdf():
+    """PyMuPDF, under either of the names it has shipped as, or None."""
+    for name in ("pymupdf", "fitz"):
+        try:
+            return __import__(name)
+        except ImportError:
+            continue
+    return None
+
+
+def _is_pdf(path: Path) -> bool:
+    return Path(path).suffix.lower() == ".pdf"
+
 
 def load_page(path: Path, dpi: int = PROBE_DPI) -> Image.Image:
-    """Rasterize page 1 of a PDF, or open an image, as RGB."""
-    if path.suffix.lower() == ".pdf":
+    """Rasterize page 1 of a PDF, or open an image, as RGB.
+
+    PyMuPDF is preferred over Poppler: it installs with pip, and using the same
+    rasterizer everywhere keeps rule detection consistent from machine to
+    machine rather than depending on which tool happens to be installed.
+    """
+    path = Path(path)
+    if not _is_pdf(path):
+        return Image.open(path).convert("RGB")
+
+    fitz = _pymupdf()
+    if fitz is not None:
+        with fitz.open(path) as document:
+            if not document.page_count:
+                raise RuntimeError(f"{path} has no pages")
+            pixmap = document[0].get_pixmap(dpi=dpi, alpha=False)
+            return Image.frombytes("RGB", (pixmap.width, pixmap.height), pixmap.samples)
+
+    if shutil.which("pdftoppm"):
         with tempfile.TemporaryDirectory() as tmp:
             prefix = Path(tmp) / "pg"
             subprocess.run(
@@ -33,7 +73,34 @@ def load_page(path: Path, dpi: int = PROBE_DPI) -> Image.Image:
             if not pages:
                 raise RuntimeError(f"Could not rasterize {path}")
             return Image.open(pages[0]).convert("RGB")
-    return Image.open(path).convert("RGB")
+
+    raise RuntimeError(NO_PDF_READER)
+
+
+def page_size_in(path: Path):
+    """(width, height) of a PDF page in inches, or None if it cannot be read.
+
+    Callers fall back to Letter, so an unreadable size is not fatal.
+    """
+    path = Path(path)
+    if not _is_pdf(path):
+        return None
+
+    fitz = _pymupdf()
+    if fitz is not None:
+        with fitz.open(path) as document:
+            if not document.page_count:
+                return None
+            rect = document[0].rect
+            return rect.width / 72.0, rect.height / 72.0
+
+    if shutil.which("pdfinfo"):
+        out = subprocess.run(["pdfinfo", str(path)],
+                             capture_output=True, text=True).stdout
+        found = re.search(r"Page size:\s+([\d.]+) x ([\d.]+) pts", out)
+        if found:
+            return float(found.group(1)) / 72.0, float(found.group(2)) / 72.0
+    return None
 
 
 def _runs(mask: np.ndarray):
