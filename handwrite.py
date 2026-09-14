@@ -415,7 +415,10 @@ body {{
 
 .display-math-src {{
   display: block;
-  margin: 10px 0 14px 12px;
+  /* Vertical space as padding, not margin: adjacent margins collapse, which
+     would make a run of equations advance the page by less than its height. */
+  margin: 0 0 0 12px;
+  padding: 10px 0 14px;
 }}
 
 .math-src, .display-math-src {{

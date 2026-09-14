@@ -45,5 +45,42 @@ with sync_playwright() as p, tempfile.TemporaryDirectory() as tmp:
     # Every source word survives pagination exactly once.
     actual = page.locator('.page .w').all_text_contents()
     assert actual.count('readable') == 75
+    # Every block has to advance the page by a whole number of ruled lines, or
+    # the writing walks off the rules further down. Adjacent vertical margins
+    # collapse to the larger of the two rather than adding, so display-math
+    # spacing is padding; this is what catches it if that regresses. Jitter is
+    # off because its rotation changes an element's bounding box.
+    maths = """Problem 1
+Inline math like $A\\vec x$ and $\\mu_1$ sits in the prose.
+$$\\begin{bmatrix}1&2\\\\3&4\\end{bmatrix}$$
+$$\\begin{bmatrix}5&6\\\\7&8\\end{bmatrix}$$
+$$\\begin{bmatrix}9&1\\\\2&3\\end{bmatrix}$$
+A line after three equations, which is where drift shows up.
+$$x=\\frac{-b\\pm\\sqrt{b^2-4ac}}{2a}$$
+The last line of all.
+"""
+    path = Path(tmp) / 'grid.html'
+    path.write_text(handwrite.build_html(clean.parse_blocks(maths, grouped=True),
+                                         'kalam', 1, False))
+    page.goto(path.as_uri())
+    page.wait_for_function('window.__renderDone === true')
+    off_grid = page.evaluate("""() => {
+      const LH = parseFloat(getComputedStyle(document.documentElement)
+                   .getPropertyValue('--line-height'));
+      const bad = [];
+      document.querySelectorAll('.page').forEach(pageEl => {
+        const style = getComputedStyle(pageEl);
+        const origin = pageEl.getBoundingClientRect().top + parseFloat(style.paddingTop);
+        pageEl.querySelectorAll('.hand-line, .display-math-src').forEach(el => {
+          const rules = (el.getBoundingClientRect().top - origin) / LH;
+          if (Math.abs(rules - Math.round(rules)) > 0.02) {
+            bad.push({rules: +rules.toFixed(3), what: el.className.split(' ')[0],
+                      text: (el.textContent || '').trim().slice(0, 30)});
+          }
+        });
+      });
+      return bad;
+    }""")
+    assert not off_grid, f'blocks not on the ruled grid: {off_grid}'
     browser.close()
 print('Browser layout checks passed')

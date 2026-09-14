@@ -93,6 +93,18 @@ tall delimiters as SVG paths rather than glyphs, so they cannot be font-swapped.
 Instead the delimiter is read out of the LaTeX source in order, its box is
 measured, and a traced centreline is scaled to cover it.
 
+## Why display-math spacing is padding, not margin
+
+Adjacent vertical margins collapse to the larger of the two rather than adding.
+Display-math blocks are padded out to a whole number of ruled lines so the prose
+after them lands back on a line — arithmetic that only holds if the measured
+height is also the flow advance. With margins it was not: three equations in a
+row each advanced the page 10px less than believed, and everything below them
+sat off the rules. Padding does not collapse, so the space is padding.
+
+`tests/browser_layout.py` asserts every line and equation starts a whole number
+of rules below its page's padding box.
+
 ## Paper, preset or your own
 
 A preset is a description — rule spacing in millimetres, where the first rule

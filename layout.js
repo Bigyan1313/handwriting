@@ -43,13 +43,16 @@ function prepareEquations() {
 function padDisplayMathToRules() {
   const LH = layoutConfig.lineHeight;
   document.querySelectorAll('.display-math-src').forEach(el => {
+    // The border box already includes the block's vertical padding, which is
+    // what separates display math from its neighbours. Padding is used rather
+    // than margin precisely so this arithmetic holds: adjacent vertical margins
+    // collapse to the larger of the two instead of adding, so a block padded
+    // with margins advances the flow by less than its measured height, and
+    // consecutive equations walk the text off the rules.
     const st = getComputedStyle(el);
-    const mt = parseFloat(st.marginTop) || 0, mb = parseFloat(st.marginBottom) || 0;
-    // Fractional: offsetHeight rounds to whole pixels, which cannot land on a
-    // rule spacing that isn't a whole number, and the error compounds per block.
-    const total = el.getBoundingClientRect().height + mt + mb;
-    const target = Math.ceil(total / LH) * LH;
-    el.style.marginBottom = (mb + (target - total)) + 'px';
+    const total = el.getBoundingClientRect().height;
+    const target = Math.ceil(total / LH - 0.01) * LH;
+    el.style.paddingBottom = ((parseFloat(st.paddingBottom) || 0) + (target - total)) + 'px';
   });
 }
 function paginate() {
