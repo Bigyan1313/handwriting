@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import hands
+from handwriting import hands
 
 
 @contextmanager
@@ -143,7 +143,8 @@ class HeadlessTests(unittest.TestCase):
         """The point of this module: no Tk anywhere in its import graph, so the
         style logic still works on a headless machine."""
         result = subprocess.run(
-            [sys.executable, '-c', "import sys, hands; assert 'tkinter' not in sys.modules"],
+            [sys.executable, '-c',
+             "import sys, handwriting.hands; assert 'tkinter' not in sys.modules"],
             cwd=Path(__file__).resolve().parents[1], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
 

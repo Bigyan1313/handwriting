@@ -10,8 +10,8 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import hands
-from spec import DEFAULT_LINE_HEIGHT, SPEC_VERSION, RenderSpec
+from handwriting import hands
+from handwriting.spec import DEFAULT_LINE_HEIGHT, SPEC_VERSION, RenderSpec
 
 
 @contextmanager

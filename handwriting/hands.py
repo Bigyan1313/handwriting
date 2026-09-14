@@ -31,7 +31,9 @@ FONTS = ('kalam', 'indieflower', 'patrickhand', 'caveat', 'reeniebeanie',
 VARIANTS = 'ABCD'
 
 USER_HANDS_DIR = Path.home() / '.handwriting' / 'hands'
-LEGACY_FONT_DIR = HERE / 'custom_font' / 'output'
+# The original single-hand location, in a checkout. Absent from an installed
+# copy, where your hands live under ~/.handwriting/hands instead.
+LEGACY_FONT_DIR = HERE.parent / 'custom_font' / 'output'
 PERSONAL_STYLE = 'My handwriting (Bigyan)'
 
 # A hand built from handwriting usually has a smaller x-height than the stock

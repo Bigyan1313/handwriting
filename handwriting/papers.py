@@ -9,8 +9,10 @@ Your own pages go the other way: the rules are found once with
 ``paper.detect_rules`` and cached, so a preset and an imported page are the
 same kind of thing by the time anything renders.
 
-    python3 papers.py list
-    python3 papers.py import my-goodnotes-page.pdf --name goodnotes
+    handwrite-papers list
+    handwrite-papers import my-goodnotes-page.pdf --name goodnotes
+
+From a checkout without installing, `python3 -m handwriting.papers` does the same.
 
 Spacings are the real ones: wide (legal) ruled is 8.7 mm, college ruled
 7.1 mm, narrow ruled 6.35 mm, each with a margin rule 1.25 in from the left.
@@ -22,7 +24,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
-import paper as paperlib
+from handwriting import paper as paperlib
 
 DPI = 150
 LETTER_IN = (8.5, 11.0)
@@ -188,7 +190,7 @@ def load(name_or_path, dpi=DPI):
     raise FileNotFoundError(
         f'No paper called {key!r}, and no file at that path.\n'
         f'Available: {", ".join(available())}\n'
-        'Import your own with:  python3 papers.py import PAGE.pdf --name NAME')
+        'Import your own with:  handwrite-papers import PAGE.pdf --name NAME')
 
 
 def main():

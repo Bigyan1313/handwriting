@@ -5,8 +5,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from playwright.sync_api import sync_playwright
 from pypdf import PdfReader, PdfWriter
-import clean
-import handwrite
+from handwriting import clean
+from handwriting import handwrite
 
 matrix = lambda rows: r'\begin{bmatrix}' + r'\\'.join(['1&2'] * rows) + r'\end{bmatrix}'
 fonts = handwrite.HERE / 'custom_font/output'

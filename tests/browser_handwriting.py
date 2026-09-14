@@ -13,8 +13,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from fontTools.ttLib import TTFont
 from playwright.sync_api import sync_playwright
 
-import clean
-import handwrite
+from handwriting import clean
+from handwriting import handwrite
 import synthetic_hand
 
 PERSONAL_FONT_DIR = handwrite.HERE / 'custom_font' / 'output'

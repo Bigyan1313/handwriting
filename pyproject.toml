@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "handwriting"
+version = "0.1.0"
+description = "Turn text and LaTeX into a handwritten-looking PDF"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+keywords = ["handwriting", "pdf", "latex", "katex", "notes"]
+classifiers = [
+    "Environment :: Console",
+    "Programming Language :: Python :: 3",
+    "Topic :: Text Processing :: Fonts",
+    "Topic :: Multimedia :: Graphics",
+]
+dependencies = [
+    "playwright>=1.45,<2",
+    "fonttools>=4.50,<5",
+    "Pillow>=10,<13",
+    "numpy>=1.26,<3",
+    # Reads a supplied PDF page for --paper. Pure pip, so Poppler is not needed.
+    "pymupdf>=1.24,<2",
+]
+
+[project.urls]
+Homepage = "https://github.com/Bigyan1313/handwriting"
+
+[project.scripts]
+handwrite = "handwriting.handwrite:main"
+handwrite-papers = "handwriting.papers:main"
+
+[project.gui-scripts]
+handwrite-app = "handwriting.app:main"
+
+[project.optional-dependencies]
+# Building a font from your own handwriting. Kept out of the default install:
+# rendering does not need any of it.
+fontbuild = ["potracer", "reportlab"]
+
+[tool.setuptools.packages.find]
+include = ["handwriting*"]
+
+[tool.setuptools.package-data]
+# The renderer reads these from disk at run time, so they have to ship.
+handwriting = ["*.js", "fonts/*.ttf", "fonts/*.txt", "assets/katex/*", "assets/katex/fonts/*"]

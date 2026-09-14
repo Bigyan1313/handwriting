@@ -5,7 +5,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import handwrite
+from handwriting import handwrite
 
 SIZES = ((22, 40), (30, 44), (18, 32), (26, 50))
 

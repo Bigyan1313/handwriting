@@ -11,10 +11,13 @@ Use Python 3.10 or newer:
 ```sh
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install -r requirements.txt
+python -m pip install .
 python -m playwright install chromium
-python app.py
+handwrite-app
 ```
+
+That puts three commands on your PATH: `handwrite` to render, `handwrite-papers`
+to manage paper, and `handwrite-app` for the editor.
 
 On Windows, activate with `.venv\Scripts\activate` instead. The desktop app uses
 Tkinter. If your Python installation does not include it, install your operating
@@ -71,7 +74,7 @@ via KaTeX with a light hand-drawn wobble applied on top.
 ## Quick start
 
 ```bash
-python3 handwrite.py input.txt output.pdf
+handwrite input.txt output.pdf
 ```
 
 That's it — `output.pdf` is ready to print.
@@ -79,7 +82,7 @@ That's it — `output.pdf` is ready to print.
 Options:
 
 ```bash
-python3 handwrite.py input.txt output.pdf \
+handwrite input.txt output.pdf \
   --font kalam \        # kalam (default) | indieflower | patrickhand |
                          # caveat | reeniebeanie | shadowsintolight | gochihand
   --seed 7 \             # change this to get a different jitter "handwriting pass"
@@ -92,7 +95,7 @@ python3 handwrite.py input.txt output.pdf \
 With a font built from your own handwriting (see `custom_font/`):
 
 ```bash
-python3 handwrite.py input.txt output.pdf \
+handwrite input.txt output.pdf \
   --custom-font custom_font/output/BigyanHand.ttf \
   --font-size 30 --line-height 44 --hand-math
 ```
@@ -100,7 +103,7 @@ python3 handwrite.py input.txt output.pdf \
 ### Writing onto your own ruled page
 
 ```bash
-python3 handwrite.py input.txt output.pdf \
+handwrite input.txt output.pdf \
   --custom-font custom_font/output/Hand-A.ttf \
   --custom-font-b custom_font/output/Hand-B.ttf \
   --paper my_goodnotes_page.pdf --hand-math
@@ -127,7 +130,7 @@ but reads as printed next to handwriting. `--font-size` matters here: a font
 built from handwriting usually has a smaller x-height than the stock ones,
 so it needs a larger size to match.
 
-Run `python3 handwrite.py --help` any time for the full option list.
+Run `handwrite --help` any time for the full option list.
 
 ## Input format
 
@@ -175,31 +178,37 @@ reliable.
 
 ## Files
 
-- `handwrite.py` — the CLI / renderer (Python + Playwright + KaTeX)
-- `clean.py` — the messy-paste cleanup + block parser (also has a
-  `python3 clean.py` self-test against `example_input.txt`)
-- `fonts/` — the handwriting fonts (Google Fonts, OFL licensed)
-- `assets/katex/` — local KaTeX (no network needed at render time)
+Everything the renderer needs lives in the `handwriting/` package:
+
+- `handwriting/handwrite.py` — the CLI and renderer (Python + Playwright + KaTeX)
+- `handwriting/spec.py` — the render spec, one document describing an output
+- `handwriting/hands.py`, `handwriting/papers.py` — the handwriting and the page to write it on
+- `handwriting/clean.py` — messy-paste cleanup and the block parser (also has a
+  `python3 -m handwriting.clean` self-test against `example_input.txt`)
+- `handwriting/fonts/` — the handwriting fonts (Google Fonts, OFL licensed)
+- `handwriting/assets/katex/` — local KaTeX (no network needed at render time)
+- `custom_font/` — optional tools for building a font from your handwriting
 - `example_input.txt` — the sample you can test against
 
 ## Using your own handwriting instead of a stock font
 
 See `custom_font/README.md` — write out a template in GoodNotes (or on
-paper), and it gets traced into a real `.ttf` you can pass to `handwrite.py`
-via `--custom-font path/to/YourFont.ttf` instead of `--font`.
+paper), and it gets traced into a real `.ttf` you can pass to `handwrite`
+via `--custom-font path/to/YourFont.ttf`, or drop into a hand directory and
+select with `--hand`.
 
 ## Requirements
 
-Install dependencies with `python -m pip install -r requirements.txt` and the
-browser with `python -m playwright install chromium`. That is everything —
-no system packages. Supplied PDF paper is read with PyMuPDF, which pip installs;
+Install with `python -m pip install .` and the browser with
+`python -m playwright install chromium`. That is everything — no system
+packages. Supplied PDF paper is read with PyMuPDF, which pip installs;
 Poppler is used instead if you happen to have it, but is not required. Optional
 font-building dependencies are listed in `custom_font/requirements-portable.txt`.
 
 ### Natural page layout
 
 ```bash
-python3 handwrite.py hw_solutions.txt output/natural_handwriting.pdf --clean \
+handwrite hw_solutions.txt output/natural_handwriting.pdf --clean \
   --custom-font custom_font/output/BigyanHand-A.ttf \
   --custom-font-b custom_font/output/BigyanHand-B.ttf \
   --font-size 30 --line-height 44 --hand-math --analyze
@@ -264,8 +273,8 @@ Pillow, NumPy, and fontTools; SciPy is optional. New checks:
 ### Choosing paper
 
 ```bash
-python3 handwrite.py notes.txt out.pdf --paper college
-python3 handwrite.py --list-papers
+handwrite notes.txt out.pdf --paper college
+handwrite --list-papers
 ```
 
 | Preset | Rule spacing |
@@ -286,8 +295,8 @@ and then use it by name. Its rules are found on import and cached, so a preset
 and your own page behave the same afterwards:
 
 ```bash
-python3 papers.py import my-goodnotes-page.pdf --name goodnotes
-python3 handwrite.py notes.txt out.pdf --paper goodnotes
+handwrite-papers import my-goodnotes-page.pdf --name goodnotes
+handwrite notes.txt out.pdf --paper goodnotes
 ```
 
 `--paper` still accepts a plain file path if you would rather not import.
@@ -299,10 +308,10 @@ render can be saved, re-run, shared, and edited a field at a time:
 
 ```bash
 # render, and write down exactly what produced it
-python3 handwrite.py notes.txt out.pdf --hand my-hand --hand-math --save-spec render.json
+handwrite notes.txt out.pdf --hand my-hand --hand-math --save-spec render.json
 
 # re-run it later, or on another machine, to the same bytes
-python3 handwrite.py --spec render.json out.pdf
+handwrite --spec render.json out.pdf
 ```
 
 ```json

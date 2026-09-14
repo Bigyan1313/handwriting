@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from PIL import Image, ImageDraw
 
-import paper
+from handwriting import paper
 
 DPI = 150
 PAGE_W, PAGE_H = 1275, 1650      # 8.5 x 11 inches at 150 dpi

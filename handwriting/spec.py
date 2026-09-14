@@ -21,7 +21,7 @@ import json
 from dataclasses import asdict, dataclass, fields, replace
 from pathlib import Path
 
-import hands
+from handwriting import hands
 
 SPEC_VERSION = 1
 DEFAULT_FONT_SIZE = 22

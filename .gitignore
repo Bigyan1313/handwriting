@@ -14,3 +14,7 @@ custom_font/output/
 hw_solutions.txt
 # Historical session notes; public setup instructions live in README.md.
 /PROJECT.md
+# Packaging build artefacts
+build/
+dist/
+*.egg-info/

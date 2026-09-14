@@ -10,7 +10,7 @@ Use Python 3.10 or newer. Fork the repository and clone your fork, then run:
 ```sh
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install -r requirements-dev.txt
+python -m pip install -r requirements-dev.txt   # editable install of the package
 python -m playwright install chromium
 ```
 
@@ -23,7 +23,7 @@ On Windows, activate with `.venv\Scripts\activate` instead.
 3. Run `python -m unittest discover -s tests -v`.
 4. For rendering changes, run `python tests/browser_layout.py` and
    `python tests/browser_handwriting.py`, then render a sample:
-   `python handwrite.py example_input.txt output/example.pdf`.
+   `handwrite example_input.txt output/example.pdf`.
 5. Open a pull request explaining the problem, resulting behavior, and checks run.
    Include a screenshot for visible changes, using sample text you can share.
 
@@ -34,6 +34,9 @@ them; explain any unavailable checks in your pull request.
 Do not commit private documents, handwriting scans, generated PDFs, or credentials.
 
 ## Project structure
+
+The runtime lives in the `handwriting/` package; `custom_font/` and `tests/`
+sit beside it.
 
 - `clean.py`: input cleanup, text/math parsing, and equation splitting.
 - `spec.py`: the render spec — one document describing an output.

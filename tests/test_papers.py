@@ -9,9 +9,9 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import handwrite
-import paper as paperlib
-import papers
+from handwriting import handwrite
+from handwriting import paper as paperlib
+from handwriting import papers
 
 FONT = handwrite.FONT_DIR / 'Kalam-Regular.ttf'
 
@@ -97,7 +97,7 @@ class SelectionTests(unittest.TestCase):
             papers.load('not-a-paper')
         message = str(caught.exception)
         self.assertIn('college', message)
-        self.assertIn('papers.py import', message)
+        self.assertIn('handwrite-papers import', message)
 
     def test_an_imported_page_is_then_selectable_by_name(self):
         with tempfile.TemporaryDirectory() as directory:

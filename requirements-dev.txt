@@ -1,2 +1,3 @@
--r requirements.txt
--r custom_font/requirements-portable.txt
+# Editable install, plus the font-building extra and the test-only packages.
+-e .[fontbuild]
+pypdf>=4,<7        # tests/render_handwriting_comparison.py

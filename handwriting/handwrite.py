@@ -19,6 +19,7 @@ import io
 import json
 import random
 import sys
+import tempfile
 from pathlib import Path
 
 try:
@@ -26,10 +27,10 @@ try:
 except ImportError:
     sync_playwright = None
 
-import clean as cleaner
-import paper as paperlib
-import papers as paperslib
-from spec import DEFAULT_FONT_SIZE, RenderSpec
+from handwriting import clean as cleaner
+from handwriting import paper as paperlib
+from handwriting import papers as paperslib
+from handwriting.spec import DEFAULT_FONT_SIZE, RenderSpec
 
 HERE = Path(__file__).resolve().parent
 FONT_DIR = HERE / "fonts"
@@ -553,7 +554,15 @@ def render(spec, output, keep_html=None, analyze=False):
                           custom_font_d_path=variants.get('D'),
                           bracket_stroke_scale=spec.bracket_stroke_scale)
 
-    html_path = Path(keep_html) if keep_html else (HERE / "output" / "_render.html")
+    # Without --keep-html the intermediate goes to a temp directory: an
+    # installed package has no business writing inside itself, and site-packages
+    # may not even be writable.
+    scratch = None
+    if keep_html:
+        html_path = Path(keep_html)
+    else:
+        scratch = tempfile.TemporaryDirectory(prefix='handwrite-')
+        html_path = Path(scratch.name) / '_render.html'
     html_path.parent.mkdir(parents=True, exist_ok=True)
     html_path.write_text(html_doc)
 
@@ -585,6 +594,8 @@ def render(spec, output, keep_html=None, analyze=False):
         Path(output).parent.mkdir(parents=True, exist_ok=True)
         page.pdf(path=output, print_background=True, prefer_css_page_size=True)
         browser.close()
+    if scratch:
+        scratch.cleanup()
     return report
 
 

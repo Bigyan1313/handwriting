@@ -9,7 +9,7 @@ import webbrowser
 from pathlib import Path
 from tkinter import filedialog, messagebox, scrolledtext, ttk
 
-from hands import available_styles, find_hand
+from handwriting.hands import available_styles, find_hand
 
 HERE = Path(__file__).resolve().parent
 SAMPLE = r"""My handwritten notes
@@ -32,7 +32,7 @@ def render_document(text, output, font=None, hand_math=True, cleanup=False):
     with tempfile.TemporaryDirectory(prefix='handwriting-') as directory:
         source = Path(directory) / 'input.txt'
         source.write_text(text, encoding='utf-8')
-        command = [sys.executable, str(HERE / 'handwrite.py'), str(source),
+        command = [sys.executable, '-m', 'handwriting.handwrite', str(source),
                    str(output), *font_options, '--keep-html',
                    str(Path(directory) / 'render.html')]
         if hand_math:
@@ -162,7 +162,11 @@ class HandwritingApp:
         self.root.destroy()
 
 
-if __name__ == '__main__':
+def main():
     root = tk.Tk()
     HandwritingApp(root)
     root.mainloop()
+
+
+if __name__ == '__main__':
+    main()
