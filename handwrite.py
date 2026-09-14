@@ -28,6 +28,7 @@ except ImportError:
 
 import clean as cleaner
 import paper as paperlib
+import papers as paperslib
 from spec import DEFAULT_FONT_SIZE, RenderSpec
 
 HERE = Path(__file__).resolve().parent
@@ -61,16 +62,19 @@ def font_vmetrics(path: str):
     return asc, desc, upem
 
 
-def paper_layout(paper_path: str, font_path: str, font_size: int):
-    """Work out the CSS geometry needed to write onto a supplied ruled page:
+def paper_layout(paper_ref: str, font_path: str, font_size: int):
+    """Work out the CSS geometry needed to write onto a ruled page:
     page size, line-height matching the rules, and the top/left padding that
-    puts the first baseline on the first rule and clears the margin rule."""
-    path = Path(paper_path)
-    img = paperlib.load_page(path)
-    rules = paperlib.detect_rules(img)
+    puts the first baseline on the first rule and clears the margin rule.
+
+    `paper_ref` is a preset name, one of your imported pages, or a file path;
+    papers.load() hands all three back in the same form.
+    """
+    img, rules = paperslib.load(paper_ref)
+    path = Path(paper_ref)
 
     page_w_in, page_h_in = 8.5, 11.0
-    if path.suffix.lower() == ".pdf":
+    if path.suffix.lower() == ".pdf" and path.is_file():
         size = paperlib.page_size_in(path)
         if size:
             page_w_in, page_h_in = size
@@ -311,7 +315,10 @@ def build_html(blocks, font_key: str, seed: int, jitter: bool, custom_font_path:
             pass
 
     if paper:
-        line_height = int(round(paper["line_height"]))
+        # Keep the rule spacing exact. Rounding to a whole pixel drifts the
+        # writing off the rules over a page, and display-math padding snaps
+        # to multiples of it, which compounds the error fast.
+        line_height = paper["line_height"]
         page_css = (f'@page {{ size: {paper["page_w_in"]:.3f}in {paper["page_h_in"]:.3f}in; '
                     f'margin: 0; }}')
         body_bg_css = (
@@ -600,7 +607,8 @@ def main():
     ap.add_argument("--font", choices=list(FONTS.keys()), default="kalam")
     ap.add_argument("--hand", metavar="NAME", help="one of your own handwriting profiles (see `hands`)")
     ap.add_argument("--custom-font", metavar="PATH", help="use your own .ttf (e.g. one built from your handwriting) instead of --font")
-    ap.add_argument("--paper", metavar="PATH", help="write onto this ruled page (PDF or image) instead of the generated ruled paper")
+    ap.add_argument("--paper", metavar="NAME|PATH", help="write onto a paper preset, one of your imported pages, or a PDF/image file (see `python3 papers.py list`)")
+    ap.add_argument("--list-papers", action="store_true", help="show every paper you can write on, and exit")
     ap.add_argument("--custom-font-b", metavar="PATH", help="second variant of your handwriting; characters alternate between the two")
     ap.add_argument("--font-size", type=int, default=None, help="body text size in px (default 22; custom fonts often want more)")
     ap.add_argument("--hand-math", action="store_true", help="render the math in the handwriting font too (KaTeX still does the layout)")
@@ -616,6 +624,13 @@ def main():
     ap.add_argument('--bracket-stroke-scale', type=float, default=1.0, help='bracket pen width relative to nearby handwriting (default 1.0)')
     ap.add_argument('--analyze', action='store_true', help='print measured layout report and save JSON beside PDF')
     args = ap.parse_args()
+
+    if args.list_papers:
+        for name in paperslib.PRESETS:
+            print(f'  {name:<14} {paperslib.PRESETS[name]["display"]}')
+        for name in paperslib.imported_names():
+            print(f'  {name:<14} yours')
+        return
 
     if args.spec:
         if args.output:

@@ -53,15 +53,16 @@ as JSON. **Browser to Python** is one JSON object, `window.__layoutReport`.
 
 | File | Lines | Responsibility |
 |---|---|---|
-| `handwrite.py` | 648 | `render(spec)`, font embedding, paper geometry, the HTML document template, Playwright driving. |
+| `handwrite.py` | 661 | `render(spec)`, font embedding, paper geometry, the HTML document template, Playwright driving. |
 | `spec.py` | 134 | The render spec: what an output is, how it resolves a hand to fonts and metrics, and how it is saved and reloaded. |
 | `clean.py` | 296 | Messy-paste repair, block parsing, inline segmentation, safe equation splitting. Pure functions, no I/O. |
 | `handwriting.js` | 269 | Per-glyph font selection from coverage sets; redraws brackets, vector arrows and radicals as SVG; writes the handwriting audit. |
 | `app.py` | 168 | Tkinter editor. Renders on a worker thread, polls a queue, surfaces cleanup notes as a warning dialog. |
-| `layout.js` | 185 | Equation line-splitting, word-atom line breaking, pagination with widow control, the layout report. |
+| `layout.js` | 188 | Equation line-splitting, word-atom line breaking, pagination with widow control, the layout report. |
 | `delimiters.js` | 142 | Swaps KaTeX's stretchy delimiters for handwritten glyphs, and the canvas ink measurement that positions them. |
 | `random.js` | 9 | The one seeded generator every layer draws from, so a `--seed` reproduces a render exactly. |
-| `paper.py` | 114 | Rasterize a page, find ruled lines and the margin rule by pixel coverage, return resolution-independent fractions. |
+| `paper.py` | 182 | Read a supplied page (PDF via PyMuPDF or Poppler, or an image), find its rules and margin by pixel coverage. |
+| `papers.py` | 225 | Paper presets, drawn from their measurements so the geometry is known rather than detected, plus importing pages of your own. |
 | `hands.py` | 177 | Handwriting profile discovery: bundled fonts and your own hand directories, and the flags each needs. GUI-free so it stays testable headless. |
 | `custom_font/` | ~630 | Charset definitions, template generators, glyph extraction, two font-building backends, stroke-profile calibration. |
 | `tests/` | ~700 | Unit modules, two browser suites, a synthetic-hand fixture generator, one visual-acceptance PDF generator. |
@@ -91,6 +92,21 @@ layout; only characters are swapped. Brackets are the exception — KaTeX draws
 tall delimiters as SVG paths rather than glyphs, so they cannot be font-swapped.
 Instead the delimiter is read out of the LaTeX source in order, its box is
 measured, and a traced centreline is scaled to cover it.
+
+## Paper, preset or your own
+
+A preset is a description — rule spacing in millimetres, where the first rule
+sits, whether there is a margin — and the page is drawn from it. Its geometry is
+therefore exact, rather than measured back out of a rasterised image, and no
+page pictures live in the repository. Your own pages go the other way: the rules
+are detected once on import and cached beside the page, so by the time anything
+renders, a preset and an imported page are the same thing. `papers.load()` is
+the single door for all three inputs — preset name, imported name, file path.
+
+One consequence worth keeping: real rule spacings are not whole numbers of CSS
+pixels (college ruled is 26.83), so the line height must stay fractional. It
+used to be rounded, which walked the writing off the rules across a page and
+compounded through display-math padding.
 
 ## A render is a function of a spec
 

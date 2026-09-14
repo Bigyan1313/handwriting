@@ -45,7 +45,9 @@ function padDisplayMathToRules() {
   document.querySelectorAll('.display-math-src').forEach(el => {
     const st = getComputedStyle(el);
     const mt = parseFloat(st.marginTop) || 0, mb = parseFloat(st.marginBottom) || 0;
-    const total = el.offsetHeight + mt + mb;
+    // Fractional: offsetHeight rounds to whole pixels, which cannot land on a
+    // rule spacing that isn't a whole number, and the error compounds per block.
+    const total = el.getBoundingClientRect().height + mt + mb;
     const target = Math.ceil(total / LH) * LH;
     el.style.marginBottom = (mb + (target - total)) + 'px';
   });
@@ -124,7 +126,8 @@ function paginate() {
   }
   function height(el) {
     const s = getComputedStyle(el);
-    return el.offsetHeight + (parseFloat(s.marginTop) || 0) + (parseFloat(s.marginBottom) || 0);
+    return el.getBoundingClientRect().height
+      + (parseFloat(s.marginTop) || 0) + (parseFloat(s.marginBottom) || 0);
   }
   for (const group of Array.from(source.children)) {
     const units = Array.from(group.children);

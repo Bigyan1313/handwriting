@@ -43,6 +43,7 @@ Do not commit private documents, handwriting scans, generated PDFs, or credentia
 - `delimiters.js`: handwritten stretchy brackets and their ink measurement.
 - `random.js`: the shared seeded generator.
 - `paper.py`: custom paper detection, and reading a supplied PDF or image page.
+- `papers.py`: paper presets, and importing pages of your own.
 - `hands.py`: which handwriting styles are available (no GUI dependencies).
 - `custom_font/`: optional tools for building fonts from handwriting samples.
 - `tests/`: parser, font, and browser checks.

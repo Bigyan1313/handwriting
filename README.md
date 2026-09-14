@@ -261,6 +261,37 @@ Use brackets B for B/D and `glyphs_math2` for C/D. The profile generator require
 Pillow, NumPy, and fontTools; SciPy is optional. New checks:
 `python3 tests/browser_handwriting.py` and `python3 tests/render_handwriting_comparison.py`.
 
+### Choosing paper
+
+```bash
+python3 handwrite.py notes.txt out.pdf --paper college
+python3 handwrite.py --list-papers
+```
+
+| Preset | Rule spacing |
+|---|---|
+| `ruled-wide` | 8.7 mm, with a margin rule |
+| `college` | 7.1 mm, with a margin rule |
+| `ruled-narrow` | 6.35 mm, with a margin rule |
+| `graph-5mm` | 5 mm squares |
+| `dotted-5mm` | 5 mm dot grid |
+| `blank` | no marks, 7.1 mm line rhythm |
+
+Presets are drawn from their measurements rather than stored as images, so the
+renderer knows exactly where each rule is instead of measuring it back out of a
+picture.
+
+To write on a page of your own — a GoodNotes export, a scan — import it once
+and then use it by name. Its rules are found on import and cached, so a preset
+and your own page behave the same afterwards:
+
+```bash
+python3 papers.py import my-goodnotes-page.pdf --name goodnotes
+python3 handwrite.py notes.txt out.pdf --paper goodnotes
+```
+
+`--paper` still accepts a plain file path if you would rather not import.
+
 ### Saving a render as a spec
 
 Everything that decides what a page looks like lives in one JSON document, so a
