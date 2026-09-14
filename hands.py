@@ -42,14 +42,25 @@ DEFAULT_LINE_HEIGHT = 44
 
 @dataclass(frozen=True)
 class Hand:
-    """One selectable handwriting style, and the flags handwrite.py needs."""
+    """One selectable handwriting style.
+
+    `options` is the command-line form, for the desktop app. `fonts` and the
+    metrics are the same thing as data, for a render spec.
+    """
     name: str          # stable identifier, e.g. 'kalam' or a directory name
     display: str       # what a person picks from a list
     options: tuple     # command-line options for handwrite.py
+    fonts: dict = None # variant letter -> font path; empty for a bundled font
+    font_size: int = None
+    line_height: int = None
 
     @property
     def personal(self):
-        return '--custom-font' in self.options
+        return bool(self.fonts)
+
+    def __post_init__(self):
+        if self.fonts is None:
+            object.__setattr__(self, 'fonts', {})
 
 
 def _variant_paths(directory):
@@ -90,15 +101,18 @@ def hand_from_directory(directory):
     meta = _read_metadata(directory)
     legacy = directory.resolve() == LEGACY_FONT_DIR.resolve()
     default_display = PERSONAL_STYLE if legacy else directory.name
+    font_size = int(meta.get('font_size', DEFAULT_FONT_SIZE))
+    line_height = int(meta.get('line_height', DEFAULT_LINE_HEIGHT))
     options = ['--custom-font', str(variants['A']),
-               '--font-size', str(meta.get('font_size', DEFAULT_FONT_SIZE)),
-               '--line-height', str(meta.get('line_height', DEFAULT_LINE_HEIGHT))]
+               '--font-size', str(font_size), '--line-height', str(line_height)]
     for letter in 'BCD':
         if letter in variants:
             options.extend([f'--custom-font-{letter.lower()}', str(variants[letter])])
     return Hand(name=directory.name,
                 display=str(meta.get('display', default_display)),
-                options=tuple(options))
+                options=tuple(options),
+                fonts={letter: str(path) for letter, path in sorted(variants.items())},
+                font_size=font_size, line_height=line_height)
 
 
 def hand_directories():

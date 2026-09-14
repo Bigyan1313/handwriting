@@ -29,6 +29,7 @@ except ImportError:
 
 import clean as cleaner
 import paper as paperlib
+from spec import DEFAULT_FONT_SIZE, RenderSpec
 
 HERE = Path(__file__).resolve().parent
 FONT_DIR = HERE / "fonts"
@@ -492,62 +493,32 @@ body {{
 """
 
 
-def main():
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("input", help="input text/markdown file with the solution")
-    ap.add_argument("output", help="output PDF path")
-    ap.add_argument("--font", choices=list(FONTS.keys()), default="kalam")
-    ap.add_argument("--custom-font", metavar="PATH", help="use your own .ttf (e.g. one built from your handwriting) instead of --font")
-    ap.add_argument("--paper", metavar="PATH", help="write onto this ruled page (PDF or image) instead of the generated ruled paper")
-    ap.add_argument("--custom-font-b", metavar="PATH", help="second variant of your handwriting; characters alternate between the two")
-    ap.add_argument("--font-size", type=int, default=None, help="body text size in px (default 22; custom fonts often want more)")
-    ap.add_argument("--hand-math", action="store_true", help="render the math in the handwriting font too (KaTeX still does the layout)")
-    ap.add_argument("--no-hand-delims", action="store_true", help="keep KaTeX's brackets instead of your handwritten ones (only relevant with --hand-math)")
-    ap.add_argument("--math-scale", type=float, default=1.28, help="size bump for hand-rendered math (default 1.28)")
-    ap.add_argument("--line-height", type=int, default=40, help="ruled line spacing in px (default 40)")
-    ap.add_argument("--seed", type=int, default=1, help="random seed for jitter (change for a different look)")
-    ap.add_argument("--clean", action="store_true", help="input is already clean LaTeX/Markdown -- skip messy-paste cleanup")
-    ap.add_argument("--no-jitter", action="store_true", help="disable per-word jitter (uniform font look)")
-    ap.add_argument("--keep-html", metavar="PATH", help="also save the intermediate HTML for inspection")
-    ap.add_argument('--custom-font-c', metavar='PATH')
-    ap.add_argument('--custom-font-d', metavar='PATH')
-    ap.add_argument('--bracket-stroke-scale', type=float, default=1.0, help='bracket pen width relative to nearby handwriting (default 1.0)')
-    ap.add_argument('--analyze', action='store_true', help='print measured layout report and save JSON beside PDF')
-    args = ap.parse_args()
-    if any([args.custom_font_b, args.custom_font_c, args.custom_font_d]) and not args.custom_font:
-        ap.error('alternate fonts require --custom-font')
-    if not 0 < args.bracket_stroke_scale < float('inf'):
-        ap.error('bracket stroke scale must be finite and positive')
-    if args.line_height <= 0 or (args.font_size is not None and args.font_size <= 0):
-        ap.error('font size and line height must be positive')
+def render(spec, output, keep_html=None, analyze=False):
+    """Render a spec to a PDF. Returns the layout report.
 
-    if args.font_size is None and not args.paper:
-        args.font_size = 22
-
-    raw = Path(args.input).read_text(encoding='utf-8-sig')
-
-    if args.clean:
-        text = raw
-        notes = []
-    else:
-        text, notes = cleaner.clean_messy_text(raw)
-
+    Everything that decides what the page looks like comes from the spec; the
+    arguments here are only about where the artefacts go.
+    """
+    raw = Path(spec.content).read_text(encoding='utf-8-sig')
+    text, notes = (raw, []) if spec.clean else cleaner.clean_messy_text(raw)
     if notes:
         print("Cleanup notes:", file=sys.stderr)
         for n in notes:
-            flag = "  [!] " if n.startswith("WARNING") else "  - "
-            print(flag + n, file=sys.stderr)
+            print(("  [!] " if n.startswith("WARNING") else "  - ") + n, file=sys.stderr)
 
-    font_for_metrics = args.custom_font or str(FONT_DIR / FONTS[args.font]["regular"])
+    variants = spec.font_variants()
+    custom = variants.get('A')
+    font_key = spec.font_key()
+    font_size, line_height = spec.metrics()
+    font_for_metrics = custom or str(FONT_DIR / FONTS[font_key]["regular"])
 
     paper = None
-    if args.paper:
-        font_size = args.font_size
+    if spec.paper:
         if font_size is None:
             # Size the writing to the paper: aim for an x-height around 40% of
             # the rule spacing, but never let ascender+descender overrun the
             # spacing by more than a little.
-            probe, rules0 = paper_layout(args.paper, font_for_metrics, 22)
+            probe, _ = paper_layout(spec.paper, font_for_metrics, 22)
             if probe:
                 asc, desc, upem = font_vmetrics(font_for_metrics)
                 lh = probe["line_height"]
@@ -555,24 +526,26 @@ def main():
                 print(f"Auto font size for this paper: {font_size}px "
                       f"(rule spacing {lh:.1f}px)", file=sys.stderr)
             else:
-                font_size = 22
-        args.font_size = font_size
-        paper, rules = paper_layout(args.paper, font_for_metrics, args.font_size)
+                font_size = DEFAULT_FONT_SIZE
+        paper, rules = paper_layout(spec.paper, font_for_metrics, font_size)
         print(paperlib.describe(rules), file=sys.stderr)
         if paper is None:
             print("  -> using the generated ruled paper instead.", file=sys.stderr)
+    if font_size is None:
+        font_size = DEFAULT_FONT_SIZE
 
     blocks = cleaner.parse_blocks(text, grouped=True)
-    html_doc = build_html(blocks, args.font, args.seed, jitter=not args.no_jitter,
-                          custom_font_path=args.custom_font,
-                          font_size=args.font_size, line_height=args.line_height,
-                          hand_math=args.hand_math, math_scale=args.math_scale,
-                          custom_font_b_path=args.custom_font_b, paper=paper,
-                          hand_delims=not args.no_hand_delims,
-                          custom_font_c_path=args.custom_font_c, custom_font_d_path=args.custom_font_d,
-                          bracket_stroke_scale=args.bracket_stroke_scale)
+    html_doc = build_html(blocks, font_key, spec.seed, jitter=spec.jitter,
+                          custom_font_path=custom,
+                          font_size=font_size, line_height=line_height,
+                          hand_math=spec.hand_math, math_scale=spec.math_scale,
+                          custom_font_b_path=variants.get('B'), paper=paper,
+                          hand_delims=spec.hand_delims,
+                          custom_font_c_path=variants.get('C'),
+                          custom_font_d_path=variants.get('D'),
+                          bracket_stroke_scale=spec.bracket_stroke_scale)
 
-    html_path = Path(args.keep_html) if args.keep_html else (HERE / "output" / "_render.html")
+    html_path = Path(keep_html) if keep_html else (HERE / "output" / "_render.html")
     html_path.parent.mkdir(parents=True, exist_ok=True)
     html_path.write_text(html_doc)
 
@@ -594,18 +567,81 @@ def main():
         page.wait_for_function("window.__renderDone === true")
         page.wait_for_timeout(150)
         report = page.evaluate('window.__layoutReport')
-        if args.analyze:
-            report_path = Path(args.output).with_suffix('.layout.json')
+        if analyze:
+            report_path = Path(output).with_suffix('.layout.json')
             report_path.parent.mkdir(parents=True, exist_ok=True)
             report_path.write_text(json.dumps(report, indent=2))
             print(json.dumps(report, indent=2))
         if report['warnings']:
             print('Layout warnings: ' + '; '.join(report['warnings']), file=sys.stderr)
-        Path(args.output).parent.mkdir(parents=True, exist_ok=True)
-        page.pdf(path=args.output, print_background=True, prefer_css_page_size=True)
+        Path(output).parent.mkdir(parents=True, exist_ok=True)
+        page.pdf(path=output, print_background=True, prefer_css_page_size=True)
         browser.close()
+    return report
 
-    print(f"Wrote {args.output}")
+
+def spec_from_args(args):
+    """The spec these command-line options describe."""
+    variants = {letter: path for letter, path in
+                zip('ABCD', [args.custom_font, args.custom_font_b,
+                             args.custom_font_c, args.custom_font_d]) if path}
+    return RenderSpec(
+        content=args.input, hand=args.hand or args.font, fonts=variants,
+        paper=args.paper, font_size=args.font_size, line_height=args.line_height,
+        seed=args.seed, jitter=not args.no_jitter, clean=args.clean,
+        hand_math=args.hand_math, hand_delims=not args.no_hand_delims,
+        math_scale=args.math_scale, bracket_stroke_scale=args.bracket_stroke_scale)
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("input", nargs='?', help="input text/markdown file (with --spec, the output PDF path)")
+    ap.add_argument("output", nargs='?', help="output PDF path")
+    ap.add_argument("--spec", metavar="PATH", help="render this saved spec instead of the options below")
+    ap.add_argument("--save-spec", metavar="PATH", help="write the spec these options describe")
+    ap.add_argument("--font", choices=list(FONTS.keys()), default="kalam")
+    ap.add_argument("--hand", metavar="NAME", help="one of your own handwriting profiles (see `hands`)")
+    ap.add_argument("--custom-font", metavar="PATH", help="use your own .ttf (e.g. one built from your handwriting) instead of --font")
+    ap.add_argument("--paper", metavar="PATH", help="write onto this ruled page (PDF or image) instead of the generated ruled paper")
+    ap.add_argument("--custom-font-b", metavar="PATH", help="second variant of your handwriting; characters alternate between the two")
+    ap.add_argument("--font-size", type=int, default=None, help="body text size in px (default 22; custom fonts often want more)")
+    ap.add_argument("--hand-math", action="store_true", help="render the math in the handwriting font too (KaTeX still does the layout)")
+    ap.add_argument("--no-hand-delims", action="store_true", help="keep KaTeX's brackets instead of your handwritten ones (only relevant with --hand-math)")
+    ap.add_argument("--math-scale", type=float, default=1.28, help="size bump for hand-rendered math (default 1.28)")
+    ap.add_argument("--line-height", type=int, default=None, help="ruled line spacing in px (default 40)")
+    ap.add_argument("--seed", type=int, default=1, help="random seed for jitter (change for a different look)")
+    ap.add_argument("--clean", action="store_true", help="input is already clean LaTeX/Markdown -- skip messy-paste cleanup")
+    ap.add_argument("--no-jitter", action="store_true", help="disable per-word jitter (uniform font look)")
+    ap.add_argument("--keep-html", metavar="PATH", help="also save the intermediate HTML for inspection")
+    ap.add_argument('--custom-font-c', metavar='PATH')
+    ap.add_argument('--custom-font-d', metavar='PATH')
+    ap.add_argument('--bracket-stroke-scale', type=float, default=1.0, help='bracket pen width relative to nearby handwriting (default 1.0)')
+    ap.add_argument('--analyze', action='store_true', help='print measured layout report and save JSON beside PDF')
+    args = ap.parse_args()
+
+    if args.spec:
+        if args.output:
+            ap.error('with --spec, give only the output path')
+        if not args.input:
+            ap.error('with --spec, give the output path')
+        output = args.input
+        spec = RenderSpec.load(args.spec)
+    else:
+        if not (args.input and args.output):
+            ap.error('an input file and an output path are required')
+        output = args.output
+        if any([args.custom_font_b, args.custom_font_c, args.custom_font_d]) and not args.custom_font:
+            ap.error('alternate fonts require --custom-font')
+        try:
+            spec = spec_from_args(args)
+        except ValueError as error:
+            ap.error(str(error))
+
+    if args.save_spec:
+        print(f"Wrote {spec.save(args.save_spec)}", file=sys.stderr)
+
+    render(spec, output, keep_html=args.keep_html, analyze=args.analyze)
+    print(f"Wrote {output}")
 
 
 if __name__ == "__main__":

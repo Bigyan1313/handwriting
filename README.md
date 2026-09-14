@@ -260,6 +260,39 @@ Use brackets B for B/D and `glyphs_math2` for C/D. The profile generator require
 Pillow, NumPy, and fontTools; SciPy is optional. New checks:
 `python3 tests/browser_handwriting.py` and `python3 tests/render_handwriting_comparison.py`.
 
+### Saving a render as a spec
+
+Everything that decides what a page looks like lives in one JSON document, so a
+render can be saved, re-run, shared, and edited a field at a time:
+
+```bash
+# render, and write down exactly what produced it
+python3 handwrite.py notes.txt out.pdf --hand my-hand --hand-math --save-spec render.json
+
+# re-run it later, or on another machine, to the same bytes
+python3 handwrite.py --spec render.json out.pdf
+```
+
+```json
+{
+  "version": 1,
+  "content": "notes.txt",
+  "hand": "my-hand",
+  "paper": null,
+  "font_size": null,
+  "line_height": null,
+  "seed": 1,
+  "hand_math": true
+}
+```
+
+Only `content` is required. `font_size` and `line_height` left as `null` fall
+back to what the chosen hand recommends in its own `hand.json`, or to the
+defaults for a bundled font — so `--hand my-hand` already writes at the size
+that hand was built for, without repeating it every time.
+
+`--hand NAME` selects one of your own handwritings by name; see below.
+
 ### Using several handwritings
 
 A *hand* is a directory of your own traced handwriting. Put one under

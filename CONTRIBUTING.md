@@ -36,6 +36,7 @@ Do not commit private documents, handwriting scans, generated PDFs, or credentia
 ## Project structure
 
 - `clean.py`: input cleanup, text/math parsing, and equation splitting.
+- `spec.py`: the render spec — one document describing an output.
 - `handwrite.py`: fonts, HTML generation, and PDF rendering through Chromium.
 - `layout.js`: measured page layout.
 - `handwriting.js`: handwritten math and glyph selection.

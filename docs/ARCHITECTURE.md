@@ -53,7 +53,8 @@ as JSON. **Browser to Python** is one JSON object, `window.__layoutReport`.
 
 | File | Lines | Responsibility |
 |---|---|---|
-| `handwrite.py` | 612 | CLI, font embedding, paper geometry, the HTML document template, Playwright driving. About half is one f-string. |
+| `handwrite.py` | 648 | `render(spec)`, font embedding, paper geometry, the HTML document template, Playwright driving. |
+| `spec.py` | 134 | The render spec: what an output is, how it resolves a hand to fonts and metrics, and how it is saved and reloaded. |
 | `clean.py` | 296 | Messy-paste repair, block parsing, inline segmentation, safe equation splitting. Pure functions, no I/O. |
 | `handwriting.js` | 269 | Per-glyph font selection from coverage sets; redraws brackets, vector arrows and radicals as SVG; writes the handwriting audit. |
 | `app.py` | 168 | Tkinter editor. Renders on a worker thread, polls a queue, surfaces cleanup notes as a warning dialog. |
@@ -61,7 +62,7 @@ as JSON. **Browser to Python** is one JSON object, `window.__layoutReport`.
 | `delimiters.js` | 142 | Swaps KaTeX's stretchy delimiters for handwritten glyphs, and the canvas ink measurement that positions them. |
 | `random.js` | 9 | The one seeded generator every layer draws from, so a `--seed` reproduces a render exactly. |
 | `paper.py` | 114 | Rasterize a page, find ruled lines and the margin rule by pixel coverage, return resolution-independent fractions. |
-| `hands.py` | 163 | Handwriting profile discovery: bundled fonts and your own hand directories, and the flags each needs. GUI-free so it stays testable headless. |
+| `hands.py` | 177 | Handwriting profile discovery: bundled fonts and your own hand directories, and the flags each needs. GUI-free so it stays testable headless. |
 | `custom_font/` | ~630 | Charset definitions, template generators, glyph extraction, two font-building backends, stroke-profile calibration. |
 | `tests/` | ~700 | Unit modules, two browser suites, a synthetic-hand fixture generator, one visual-acceptance PDF generator. |
 
@@ -90,6 +91,24 @@ layout; only characters are swapped. Brackets are the exception — KaTeX draws
 tall delimiters as SVG paths rather than glyphs, so they cannot be font-swapped.
 Instead the delimiter is read out of the LaTeX source in order, its box is
 measured, and a traced centreline is scaled to cover it.
+
+## A render is a function of a spec
+
+`render(spec, output)` is the whole entry point. A `RenderSpec` holds
+everything that decides what the page looks like — content, hand, paper, seed,
+and the layout knobs — and nothing about where artefacts go. The CLI parses
+options into a spec and calls `render`; `--spec` renders a saved one and
+`--save-spec` writes the one the options describe.
+
+That matters beyond tidiness. A render becomes something you can store, diff,
+and reproduce, which is the precondition for editing one parameter at a time in
+response to "page 4 is too cramped" rather than reconstructing a command line.
+
+Resolution order is worth knowing: explicit `fonts` beat the named hand's own
+files, and an explicit `font_size` or `line_height` beats what that hand
+recommends in its `hand.json`, which in turn beats the global default. Font
+variants are keyed by letter rather than positional, so a hand with A and C but
+no B cannot slide C into B's slot.
 
 ## How the JavaScript is assembled
 
