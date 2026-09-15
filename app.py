@@ -9,11 +9,9 @@ import webbrowser
 from pathlib import Path
 from tkinter import filedialog, messagebox, scrolledtext, ttk
 
+from hands import available_styles, find_hand
+
 HERE = Path(__file__).resolve().parent
-FONTS = ('kalam', 'indieflower', 'patrickhand', 'caveat', 'reeniebeanie',
-         'shadowsintolight', 'gochihand')
-PERSONAL_STYLE = 'My handwriting (Bigyan)'
-PERSONAL_FONT_DIR = HERE / 'custom_font' / 'output'
 SAMPLE = r"""My handwritten notes
 
 Type or paste your text here, or open a text file.
@@ -26,35 +24,11 @@ $$
 """
 
 
-def personal_font_options(directory=None):
-    """Use the supplied personal font and any available alternate letter samples."""
-    directory = Path(directory) if directory is not None else PERSONAL_FONT_DIR
-    primary = directory / 'BigyanHand-A.ttf'
-    if not primary.is_file():
-        primary = directory / 'BigyanHand.ttf'
-    if not primary.is_file():
-        raise FileNotFoundError('Your handwriting font is missing. Restore '
-                                'BigyanHand-A.ttf in custom_font/output and restart the app.')
-    options = ['--custom-font', str(primary), '--font-size', '30', '--line-height', '44']
-    for variant in 'BCD':
-        path = directory / f'BigyanHand-{variant}.ttf'
-        if path.is_file():
-            options.extend([f'--custom-font-{variant.lower()}', str(path)])
-    return options
-
-
-def available_styles():
-    try:
-        personal_font_options()
-    except FileNotFoundError:
-        return FONTS
-    return (PERSONAL_STYLE, *FONTS)
-
-
 def render_document(text, output, font=None, hand_math=True, cleanup=False):
     """Render in an isolated process; keep input and intermediate HTML temporary."""
     font = font or available_styles()[0]
-    font_options = personal_font_options() if font == PERSONAL_STYLE else ['--font', font]
+    hand = find_hand(font)
+    font_options = list(hand.options) if hand else ['--font', font]
     with tempfile.TemporaryDirectory(prefix='handwriting-') as directory:
         source = Path(directory) / 'input.txt'
         source.write_text(text, encoding='utf-8')

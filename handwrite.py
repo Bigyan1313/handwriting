@@ -110,6 +110,22 @@ def paper_layout(paper_path: str, font_path: str, font_size: int):
     }, rules
 
 
+def first_rule_offset(font_path, font_size: int, line_height: int) -> float:
+    """Top padding that lands the first baseline on a rule of the *generated*
+    ruled paper.
+
+    The generated background paints its rule in the last pixel of each
+    line-height band, so rule centres sit half a pixel above each multiple of
+    the spacing. Without this the writing keeps the right pitch but sits at the
+    wrong phase, floating a constant distance above every rule. It is the same
+    correction paper_layout() already makes for a supplied page.
+    """
+    asc, desc, upem = font_vmetrics(str(font_path))
+    content_h = font_size * (asc + desc) / upem
+    baseline_in_box = (line_height - content_h) / 2.0 + font_size * asc / upem
+    return (line_height - 0.5 - baseline_in_box) % line_height
+
+
 def _face(family: str, path: str) -> str:
     b64 = base64.b64encode(Path(path).read_bytes()).decode()
     return f"""
@@ -283,17 +299,15 @@ def build_html(blocks, font_key: str, seed: int, jitter: bool, custom_font_path:
     face_css = font_face_css(font_key, custom_font_path, custom_font_b_path, custom_font_c_path, custom_font_d_path)
     family = "HandwritingFont" if custom_font_path else FONTS[font_key]["family"]
 
-    two_variants_js = "true" if (len(two_variants) > 1 and hand_math) else "false"
-
     # Handwritten stretchy delimiters need a custom font to take glyphs from,
     # and the font's own vertical metrics to place them.
-    hand_delims_js = "false"
-    font_asc, font_desc, font_upem = 800, 200, 1000
+    hand_delims_on = False
+    font_asc, font_upem = 800, 1000
     if custom_font_path:
         try:
-            font_asc, font_desc, font_upem = font_vmetrics(custom_font_path)
+            font_asc, _, font_upem = font_vmetrics(custom_font_path)
             if hand_math and hand_delims:
-                hand_delims_js = "true"
+                hand_delims_on = True
         except Exception:
             pass
 
@@ -313,7 +327,12 @@ def build_html(blocks, font_key: str, seed: int, jitter: bool, custom_font_path:
 
     page_width = paper['page_w_in'] * 96 if paper else 816
     page_height = paper['page_h_in'] * 96 if paper else 1056
-    base_top = paper['pad_top'] if paper else 0
+    if paper:
+        base_top = paper['pad_top']
+    else:
+        base_top = first_rule_offset(
+            custom_font_path or FONT_DIR / FONTS[font_key]['regular'],
+            font_size, line_height)
     body_paint = body_bg_css if body_bg_css else """  padding: var(--top-pad) 110px 60px calc(var(--margin-col) + 28px);
   background-color: #fbf9f2;
   background-image:
@@ -385,11 +404,6 @@ body {{
   font-weight: 700;
 }}
 
-/* Second version of the same handwriting: characters randomly tagged .vb
-   render from the alternate font, so repeated letters aren't identical
-   stamps of each other. */
-.vb {{ font-family: 'HandwritingFontB', cursive !important; }}
-
 .para {{ margin: 0; }}
 .para + .para {{ margin-top: 2px; }}
 
@@ -453,154 +467,21 @@ body {{
   }}
   withFontsLoaded(function () {{
 
-  var VARIANTS = {json.dumps(['HandwritingFont' + x for x in two_variants])};
   var layoutConfig = {json.dumps({'seed': seed, 'jitter': jitter, 'lineHeight': line_height, 'pageHeight': page_height, 'baseTop': base_top})};
-  { (HERE / 'layout.js').read_text() }
-  function mkRand(seed) {{
-    var s = seed >>> 0;
-    return function () {{ s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }};
-  }}
   const handwritingConfig = {json.dumps({'resources': resources, 'seed': seed, 'handMath': hand_math, 'handDelims': bool(custom_font_path and hand_math and hand_delims), 'bracketStrokeScale': bracket_stroke_scale})};
+  var delimiterConfig = {json.dumps({'enabled': hand_delims_on, 'variants': ['HandwritingFont' + x for x in two_variants], 'seed': seed, 'fontAscent': font_asc, 'fontUpem': font_upem})};
+
+  {(HERE / 'random.js').read_text()}
+  {(HERE / 'delimiters.js').read_text()}
+  {(HERE / 'layout.js').read_text()}
   {(HERE / 'handwriting.js').read_text()}
 
-  // Font choice and geometry are completed before measuring equation lines.
-  // Swap KaTeX's stretchy delimiters for the handwritten ones. KaTeX draws
-  // tall brackets as SVG paths (not glyphs), so they can't be font-swapped:
-  // instead the matching character is read from the LaTeX source in order,
-  // measured with canvas ink metrics, and scaled to cover the same box.
-  var HAND_DELIMS = {hand_delims_js};
-  var FONT_A = 'HandwritingFont', FONT_B = 'HandwritingFontB';
-  var F_ASC = {font_asc}, F_DESC = {font_desc}, F_UPEM = {font_upem};
-  var DELIM_MAP = {{'\\\\{{':'{{', '\\\\}}':'}}', '\\\\|':'|', '\\\\lbrack':'[',
-                   '\\\\rbrack':']', '\\\\vert':'|', '\\\\Vert':'|',
-                   '[':'[', ']':']', '(':'(', ')':')', '|':'|'}};
-  var ENV_DELIMS = {{
-    'pmatrix': ['(', ')'],
-    'bmatrix': ['[', ']'],
-    'Bmatrix': ['{{', '}}'],
-    'vmatrix': ['|', '|'],
-    'Vmatrix': ['|', '|'],
-    'cases':   ['{{', null],
-    'dcases':  ['{{', null],
-    'rcases':  [null, '}}'],
-    'drcases': [null, '}}']
-  }};
-
-  function delimsFromTex(tex) {{
-    var out = [];
-    var re = /\\\\(?:(left|right)(?![a-zA-Z])\\s*(\\\\[a-zA-Z]+|\\\\[^a-zA-Z\\s]|[^\\s])|(begin|end)\\{{([a-zA-Z]+)\\}})/g;
-    var m;
-    while ((m = re.exec(tex)) !== null) {{
-      if (m[1]) {{
-        var raw = m[2];
-        if (raw === '.') continue;
-        out.push(DELIM_MAP[raw] || (raw.length === 1 ? raw : null));
-      }} else if (m[3]) {{
-        var action = m[3];
-        var env = m[4];
-        if (ENV_DELIMS[env]) {{
-          var ch = action === 'begin' ? ENV_DELIMS[env][0] : ENV_DELIMS[env][1];
-          if (ch) out.push(ch);
-        }}
-      }}
-    }}
-    return out;
-  }}
-  function inkMetrics(ch, family, size) {{
-    var cx = document.createElement('canvas').getContext('2d');
-    cx.font = size + "px '" + family + "'";
-    var m = cx.measureText(ch);
-    return {{asc: m.actualBoundingBoxAscent, desc: m.actualBoundingBoxDescent,
-            left: m.actualBoundingBoxLeft, right: m.actualBoundingBoxRight}};
-  }}
-  // A .delimsizing box doesn't cover the pieces it draws (they overflow it),
-  // so take the union of its descendants' boxes.
-  function visualRect(el) {{
-    var r = el.getBoundingClientRect();
-    var top = r.top, bot = r.bottom, left = r.left, right = r.right;
-    el.querySelectorAll('*').forEach(function (n) {{
-      var b = n.getBoundingClientRect();
-      if (!b.height || !b.width) return;
-      top = Math.min(top, b.top); bot = Math.max(bot, b.bottom);
-      left = Math.min(left, b.left); right = Math.max(right, b.right);
-    }});
-    return {{dTop: top - r.top, dLeft: left - r.left, height: bot - top, width: right - left}};
-  }}
-  function origInk(el, ch) {{
-    var cs = getComputedStyle(el);
-    var cx = document.createElement('canvas').getContext('2d');
-    cx.font = parseFloat(cs.fontSize) + 'px ' + cs.fontFamily;
-    var m = cx.measureText(ch);
-    var probe = document.createElement('span');
-    probe.style.cssText = 'display:inline-block;width:0;height:0;vertical-align:baseline;';
-    el.appendChild(probe);
-    var by = probe.getBoundingClientRect().top;   // sits on the text baseline
-    probe.remove();
-    var r = el.getBoundingClientRect();
-    var h = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
-    var w = m.actualBoundingBoxLeft + m.actualBoundingBoxRight;
-    return {{dTop: (by - m.actualBoundingBoxAscent) - r.top, dLeft: 0,
-            height: h, width: Math.max(w, r.width)}};
-  }}
-  function handDelims(root, pick) {{
-    var wanted = delimsFromTex(root.dataset.tex || '');
-    Array.from(root.querySelectorAll('.delimsizing')).forEach(function (el, i) {{
-      var ch = (el.textContent || '').replace(/[\\u200b\\\\s]/g, '');
-      if (!ch) ch = wanted[i] || null;
-      if (!ch || '[]{{}}()|'.indexOf(ch) < 0 || ch === '[' || ch === ']') return;
-      var pc = el.parentElement ? String(el.parentElement.className) : '';
-      if ('([{{'.indexOf(ch) >= 0 && pc.indexOf('mclose') >= 0) return;
-      if (')]}}'.indexOf(ch) >= 0 && pc.indexOf('mopen') >= 0) return;
-      // Tall delimiters are drawn as child SVG/vlist pieces (union their
-      // boxes). Small ones are a bare text glyph that overflows its own box,
-      // so measure that glyph's ink against the element's baseline instead.
-      var v = el.children.length ? visualRect(el) : origInk(el, ch);
-      if (!v || !v.height) return;
-      var fam = pick();
-      var S = 100, im = inkMetrics(ch, fam, S);
-      var inkH = im.asc + im.desc, inkW = im.left + im.right;
-      if (!inkH || !inkW) return;
-      var sy = v.height / inkH;
-      var sx = Math.min(v.width / inkW, sy);
-      var baseOff = -S / 2 + S * F_ASC / F_UPEM;
-      var tx = v.dLeft + im.left * sx;
-      var ty = v.dTop - (baseOff - im.asc) * sy;
-      el.style.position = 'relative';
-      // Small delimiters are a bare text node on the element itself; tall ones
-      // are child SVG/vlist pieces. Hide both kinds before drawing over them.
-      var ink = getComputedStyle(el).color;
-      el.style.color = 'transparent';
-      Array.from(el.children).forEach(function (c) {{ c.style.visibility = 'hidden'; }});
-      var g = document.createElement('span');
-      g.textContent = ch;
-      g.style.cssText = "position:absolute;left:0;top:0;display:block;line-height:0;color:" + ink + ";"
-        + "font-family:'" + fam + "';font-size:" + S + "px;white-space:pre;"
-        + "transform-origin:0 0;transform:translate(" + tx + "px," + ty + "px) scale("
-        + sx + "," + sy + ");";
-      el.appendChild(g);
-    }});
-  }}
   decorateProse();
   prepareEquations();
   document.querySelectorAll('.math-src, .display-math-src').forEach(root => decorateMath(root));
-  if (HAND_DELIMS) {{
-    var dr = mkRand({seed} + 7919);
-    var pick = function () {{ return VARIANTS[Math.floor(dr() * VARIANTS.length)]; }};
-    document.querySelectorAll('.math-src, .display-math-src').forEach(function (root) {{
-      try {{ handDelims(root, pick); }} catch (e) {{}}
-    }});
-  }}
+  applyHandDelimiters();
 
-  // Keep the ruled grid: pad each display-math block out to a whole number
-  // of ruled lines so the prose after it lands back on a line.
-  var LH = {line_height};
-  document.querySelectorAll('.display-math-src').forEach(function (el) {{
-    var st = getComputedStyle(el);
-    var mt = parseFloat(st.marginTop) || 0, mb = parseFloat(st.marginBottom) || 0;
-    var total = el.offsetHeight + mt + mb;
-    var target = Math.ceil(total / LH) * LH;
-    el.style.marginBottom = (mb + (target - total)) + 'px';
-  }});
+  padDisplayMathToRules();
   paginate();
   auditHandwriting();
   window.__renderDone = true;

@@ -38,6 +38,18 @@ function prepareEquations() {
     layoutReport.equations.push({latex: original, appliedLines: lines.length});
   });
 }
+// Keep the ruled grid: pad each display-math block out to a whole number of
+// ruled lines, so the prose after it lands back on a line.
+function padDisplayMathToRules() {
+  const LH = layoutConfig.lineHeight;
+  document.querySelectorAll('.display-math-src').forEach(el => {
+    const st = getComputedStyle(el);
+    const mt = parseFloat(st.marginTop) || 0, mb = parseFloat(st.marginBottom) || 0;
+    const total = el.offsetHeight + mt + mb;
+    const target = Math.ceil(total / LH) * LH;
+    el.style.marginBottom = (mb + (target - total)) + 'px';
+  });
+}
 function paginate() {
   const LH = layoutConfig.lineHeight;
   const source = document.getElementById('source');

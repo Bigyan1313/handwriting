@@ -15,10 +15,10 @@ from playwright.sync_api import sync_playwright
 
 import clean
 import handwrite
+import synthetic_hand
 
-FONT_DIR = handwrite.HERE / 'custom_font' / 'output'
-FONT_A = FONT_DIR / 'BigyanHand-A.ttf'
-FONTS = [FONT_DIR / f'BigyanHand-{variant}.ttf' for variant in 'ABCD']
+PERSONAL_FONT_DIR = handwrite.HERE / 'custom_font' / 'output'
+PERSONAL_FONTS = [PERSONAL_FONT_DIR / f'BigyanHand-{variant}.ttf' for variant in 'ABCD']
 TARGETS = set('xXuμ βB'.replace(' ', ''))
 MATRICES = [r'\begin{bmatrix}' + r'\\'.join(['1&2'] * rows) + r'\end{bmatrix}'
             for rows in (2, 3, 4)]
@@ -49,9 +49,21 @@ def actual_fonts(page, selector):
         session.detach()
 
 
+def resolve_fonts(fallback_dir):
+    """Prefer the real personal fonts; otherwise build the synthetic hand, so
+    these checks run on any machine and in CI rather than only where the
+    (correctly gitignored) handwriting samples happen to exist."""
+    if all(path.is_file() for path in PERSONAL_FONTS):
+        return PERSONAL_FONTS
+    print('No personal handwriting fonts found — using the synthetic test hand.')
+    return synthetic_hand.build(fallback_dir)
+
+
 def main():
     with sync_playwright() as p, tempfile.TemporaryDirectory() as temporary:
         tmp = Path(temporary)
+        FONTS = resolve_fonts(tmp / 'hand')
+        FONT_A = FONTS[0]
         try:
             browser = p.chromium.launch(args=['--no-sandbox'])
         except Exception:

@@ -21,13 +21,16 @@ On Windows, activate with `.venv\Scripts\activate` instead.
 1. Create a branch: `git switch -c describe-your-change`.
 2. Make a focused change. For larger features, open an issue to discuss the design.
 3. Run `python -m unittest discover -s tests -v`.
-4. For rendering changes, run `python tests/browser_layout.py` and render a sample:
+4. For rendering changes, run `python tests/browser_layout.py` and
+   `python tests/browser_handwriting.py`, then render a sample:
    `python handwrite.py example_input.txt output/example.pdf`.
 5. Open a pull request explaining the problem, resulting behavior, and checks run.
    Include a screenshot for visible changes, using sample text you can share.
 
-Some handwriting checks require personal sample fonts and glyphs. Those files
-are excluded from Git; explain any unavailable checks in your pull request.
+`tests/browser_handwriting.py` uses your personal fonts when they are present
+and otherwise builds a synthetic stand-in, so it runs on any checkout. Some
+font-building checks still require personal glyph samples and skip without
+them; explain any unavailable checks in your pull request.
 Do not commit private documents, handwriting scans, generated PDFs, or credentials.
 
 ## Project structure
@@ -36,9 +39,15 @@ Do not commit private documents, handwriting scans, generated PDFs, or credentia
 - `handwrite.py`: fonts, HTML generation, and PDF rendering through Chromium.
 - `layout.js`: measured page layout.
 - `handwriting.js`: handwritten math and glyph selection.
+- `delimiters.js`: handwritten stretchy brackets and their ink measurement.
+- `random.js`: the shared seeded generator.
 - `paper.py`: custom paper detection (PDF backgrounds also need Poppler).
+- `hands.py`: which handwriting styles are available (no GUI dependencies).
 - `custom_font/`: optional tools for building fonts from handwriting samples.
 - `tests/`: parser, font, and browser checks.
+
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the pieces fit together,
+the reasoning behind the main design decisions, and known limits.
 
 ## Bug reports
 
