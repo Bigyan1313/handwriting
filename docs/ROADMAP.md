@@ -1,7 +1,7 @@
 # Roadmap
 
-Where the project is going, and the order to get there. Design only — nothing
-in this document is implemented yet. For how the current system works, see
+Where the project is going, and the order to get there. Sprints 1 to 4 are
+done; 5 to 7 are still design. For how the current system works, see
 [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## The product, as one flow
@@ -20,11 +20,11 @@ That sentence contains five capabilities the project does not have yet.
 | Capability | State | What is missing |
 |---|---|---|
 | Text in, handwriting out | Have | Nothing. This is the working core. |
-| Your own handwriting | Partial | Works, but `BigyanHand` is hardcoded. There is no concept of "a hand" you can have several of. |
-| Your own paper | Partial | `--paper` detects rules correctly, but there are no presets, and generated paper has the baseline phase defect. |
+| Your own handwriting | **Have** | A hand is a directory under `~/.handwriting/hands/`; keep as many as you like. |
+| Your own paper | **Have** | Six presets, or import a page of your own and use it by name. |
 | PDF as input | New | Everything. Text-layer extraction is easy; scanned pages need OCR; math needs a vision model. |
 | Aged / folded / dirty paper | New | Everything. A finishing pass compositing over the rendered page. |
-| "Fix page 4" | New | The AI loop — though the substrate already exists. |
+| "Fix page 4" | New | The AI loop. The spec it edits and the `Renderer` it re-runs both exist now. |
 
 ## The idea everything hangs on: a render spec
 
@@ -154,8 +154,9 @@ the prompt — system text plus parameter schema — and each revision costs a
 fraction of a cent, since the variable part is one page image and one report.
 
 **This is why speed is a feature, not an optimisation.** A revision is a
-re-render. If every render spends a couple of seconds launching Chromium,
-iterating feels awful. Sprint 4 must land before Sprint 7.
+re-render, and a fresh process per render costs about 1.9s of which most is
+getting ready rather than working. `Renderer` (Sprint 4) holds one browser open
+so a revision costs about 1.18s of actual rendering.
 
 ## Sprints
 
@@ -190,11 +191,20 @@ hardcoded `BigyanHand` is gone and the tool is installable.
 
 ### Sprint 4 — Speed: fast enough to iterate
 
-Sub-second re-render. Infrastructure for Sprint 7 as much as a performance win.
+Measured before optimising, which cut the sprint down to one item.
 
-- Keep one browser alive across renders
-- Cache font encoding and coverage by path and mtime
-- Batch layout measurement instead of reflowing per word
+- Keep one browser alive across renders — **done** (`Renderer`). Repeated
+  rendering in one process goes from ~1.9s per render to 0.46s once plus ~1.18s
+  each.
+- ~~Cache font encoding and coverage~~ — 0.02s. Not worth the invalidation
+  logic.
+- ~~Batch layout measurement~~ — the whole in-page phase is 0.18s, so the
+  per-word reflow loop called "the real ceiling" in the first analysis is a
+  fraction of a fraction.
+
+The dominant per-render cost is `page.pdf()` at 0.83s, inside Chromium's print
+pipeline. The part of that which is ours is the SVG wobble filter, which forces
+every equation to rasterise; changing it is a visual decision, not a tuning one.
 
 ### Sprint 5 — Input: accepts what you actually have
 

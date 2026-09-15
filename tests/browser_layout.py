@@ -83,4 +83,22 @@ The last line of all.
     }""")
     assert not off_grid, f'blocks not on the ruled grid: {off_grid}'
     browser.close()
+
+# Renderer keeps one Chromium across renders. Starting Playwright and launching
+# the browser costs about half a second, which a process rendering once pays in
+# full; anything re-rendering in response to an edit should not.
+from handwriting.handwrite import Renderer
+from handwriting.spec import RenderSpec
+
+with tempfile.TemporaryDirectory() as tmp, Renderer() as renderer:
+    inside = renderer._browser
+    spec = RenderSpec(content=str(Path(__file__).resolve().parents[1] / 'example_input.txt'))
+    first = renderer.render(spec, str(Path(tmp) / 'a.pdf'))
+    second = renderer.render(spec, str(Path(tmp) / 'b.pdf'))
+    third = renderer.render(spec.replace(seed=2), str(Path(tmp) / 'c.pdf'))
+    assert renderer._browser is inside, 'the browser was relaunched between renders'
+    assert first == second, 'the same spec rendered differently on reuse'
+    assert third != second, 'a different seed should lay out differently'
+    for name in ('a.pdf', 'b.pdf', 'c.pdf'):
+        assert (Path(tmp) / name).stat().st_size > 1000, f'{name} looks empty'
 print('Browser layout checks passed')

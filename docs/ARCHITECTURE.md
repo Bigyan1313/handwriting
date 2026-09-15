@@ -173,21 +173,36 @@ rendering one document interactively*. That shows up as process startup per
 render, repeated work that could be cached, and a layout loop with a much worse
 constant factor than it needs.
 
-### A. Make one render fast
+### A. Make one render fast — mostly not worth it, once measured
 
-- **Keep the browser alive.** `main()` opens `sync_playwright()`, launches
-  Chromium, renders one document and tears it all down; the desktop app wraps
-  that in a fresh Python subprocess per save. Lifting the browser into a
-  reusable renderer object removes the per-document startup cost.
-  (`handwrite.py`, `app.py`)
-- **Stop re-encoding fonts every render.** `_face()` base64-encodes each TTF and
-  `font_resources()` reopens each with fontTools to rebuild its coverage string
-  on every render. With four variants that is several megabytes regenerated per
-  document. Memoize on path plus mtime. (`handwrite.py`)
-- **Fix the layout thrash.** The line-breaking loop appends a word then
-  immediately calls `getBoundingClientRect()`, forcing a synchronous reflow per
-  word. Measure all atoms once and place them arithmetically, or batch through
-  `Range.getClientRects()`. (`layout.js`)
+Where a render actually spends its time, on `example_input.txt`:
+
+| | |
+|---|---|
+| `page.pdf()` | 0.83s |
+| Python imports, per process | ~1.0s |
+| Playwright + Chromium startup | 0.46s |
+| in-page: fonts, KaTeX, layout, pagination | 0.18s |
+| `build_html()`, fonts base64 and coverage | 0.02s |
+
+Two items that looked worthwhile in the first analysis were not:
+
+- ~~**Stop re-encoding fonts every render.**~~ 0.02s. Encoding a 430 KB TTF to
+  base64 is quick, and caching it would add invalidation logic to buy nothing.
+- ~~**Fix the layout thrash.**~~ The per-word `getBoundingClientRect()` loop was
+  described as "the real ceiling". Everything in the page — fonts, KaTeX,
+  line-breaking, pagination — comes to 0.18s together.
+
+The one real cost is `page.pdf()`, which is Chromium's own print pipeline. The
+SVG wobble filter forcing every equation to rasterise is the part of that which
+belongs to this project.
+
+- ~~**Keep the browser alive.**~~ Done, as `Renderer`. It changes nothing for a
+  single `handwrite` invocation (1.99s to 1.91s, which is just a fixed 150 ms
+  sleep that `window.__renderDone` already made redundant). What it changes is
+  repeated rendering in one process: 0.46s of startup once, then about 1.18s per
+  render instead of a fresh ~1.9s process each time. That is infrastructure for
+  editing a render in response to a complaint, not a speed-up of today's CLI.
 
 ### B. Handle bigger documents
 

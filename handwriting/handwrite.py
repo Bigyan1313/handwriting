@@ -502,11 +502,11 @@ body {{
 """
 
 
-def render(spec, output, keep_html=None, analyze=False):
-    """Render a spec to a PDF. Returns the layout report.
+def build_for(spec):
+    """The HTML for a spec, plus the paper geometry it resolved to.
 
-    Everything that decides what the page looks like comes from the spec; the
-    arguments here are only about where the artefacts go.
+    Everything that decides what the page looks like happens here; the browser
+    only measures and prints it.
     """
     raw = Path(spec.content).read_text(encoding='utf-8-sig')
     text, notes = (raw, []) if spec.clean else cleaner.clean_messy_text(raw)
@@ -544,59 +544,110 @@ def render(spec, output, keep_html=None, analyze=False):
         font_size = DEFAULT_FONT_SIZE
 
     blocks = cleaner.parse_blocks(text, grouped=True)
-    html_doc = build_html(blocks, font_key, spec.seed, jitter=spec.jitter,
-                          custom_font_path=custom,
-                          font_size=font_size, line_height=line_height,
-                          hand_math=spec.hand_math, math_scale=spec.math_scale,
-                          custom_font_b_path=variants.get('B'), paper=paper,
-                          hand_delims=spec.hand_delims,
-                          custom_font_c_path=variants.get('C'),
-                          custom_font_d_path=variants.get('D'),
-                          bracket_stroke_scale=spec.bracket_stroke_scale)
+    return build_html(blocks, font_key, spec.seed, jitter=spec.jitter,
+                      custom_font_path=custom,
+                      font_size=font_size, line_height=line_height,
+                      hand_math=spec.hand_math, math_scale=spec.math_scale,
+                      custom_font_b_path=variants.get('B'), paper=paper,
+                      hand_delims=spec.hand_delims,
+                      custom_font_c_path=variants.get('C'),
+                      custom_font_d_path=variants.get('D'),
+                      bracket_stroke_scale=spec.bracket_stroke_scale)
 
-    # Without --keep-html the intermediate goes to a temp directory: an
-    # installed package has no business writing inside itself, and site-packages
-    # may not even be writable.
-    scratch = None
-    if keep_html:
-        html_path = Path(keep_html)
-    else:
-        scratch = tempfile.TemporaryDirectory(prefix='handwrite-')
-        html_path = Path(scratch.name) / '_render.html'
-    html_path.parent.mkdir(parents=True, exist_ok=True)
-    html_path.write_text(html_doc)
 
-    if sync_playwright is None:
-        sys.exit(
-            "Error: Playwright is required to render PDF output.\n"
-            "Please install it by running:\n"
-            "    pip install playwright"
-        )
+class Renderer:
+    """Holds one Chromium open across renders.
 
-    with sync_playwright() as p:
+    Starting Playwright and launching Chromium costs about half a second, and
+    the Python imports another second on top, so a process that renders once
+    spends more time getting ready than working. Reuse matters most for
+    anything that re-renders in response to an edit.
+
+        with Renderer() as renderer:
+            for spec in specs:
+                renderer.render(spec, out)
+    """
+
+    def __init__(self, chromium_args=("--no-sandbox",)):
+        self._args = list(chromium_args)
+        self._playwright = None
+        self._browser = None
+
+    def __enter__(self):
+        self.start()
+        return self
+
+    def __exit__(self, *exc):
+        self.close()
+        return False
+
+    def start(self):
+        if self._browser is not None:
+            return
+        if sync_playwright is None:
+            sys.exit(
+                "Error: Playwright is required to render PDF output.\n"
+                "Please install it by running:\n"
+                "    pip install playwright"
+            )
+        self._playwright = sync_playwright().start()
         try:
-            browser = p.chromium.launch(args=["--no-sandbox"])
+            self._browser = self._playwright.chromium.launch(args=self._args)
         except Exception:
-            # Fallback to system Google Chrome if playwright's chromium isn't installed
-            browser = p.chromium.launch(args=["--no-sandbox"], channel="chrome")
-        page = browser.new_page()
-        page.goto(html_path.resolve().as_uri())
-        page.wait_for_function("window.__renderDone === true")
-        page.wait_for_timeout(150)
-        report = page.evaluate('window.__layoutReport')
-        if analyze:
-            report_path = Path(output).with_suffix('.layout.json')
-            report_path.parent.mkdir(parents=True, exist_ok=True)
-            report_path.write_text(json.dumps(report, indent=2))
-            print(json.dumps(report, indent=2))
-        if report['warnings']:
-            print('Layout warnings: ' + '; '.join(report['warnings']), file=sys.stderr)
-        Path(output).parent.mkdir(parents=True, exist_ok=True)
-        page.pdf(path=output, print_background=True, prefer_css_page_size=True)
-        browser.close()
-    if scratch:
-        scratch.cleanup()
-    return report
+            # Fall back to a system Google Chrome if Playwright's own Chromium
+            # was never downloaded.
+            self._browser = self._playwright.chromium.launch(args=self._args, channel="chrome")
+
+    def close(self):
+        if self._browser is not None:
+            self._browser.close()
+            self._browser = None
+        if self._playwright is not None:
+            self._playwright.stop()
+            self._playwright = None
+
+    def render(self, spec, output, keep_html=None, analyze=False):
+        """Render a spec to a PDF. Returns the layout report."""
+        self.start()
+        html_doc = build_for(spec)
+
+        # Without --keep-html the intermediate goes to a temp directory: an
+        # installed package has no business writing inside itself, and
+        # site-packages may not even be writable.
+        scratch = None
+        if keep_html:
+            html_path = Path(keep_html)
+        else:
+            scratch = tempfile.TemporaryDirectory(prefix='handwrite-')
+            html_path = Path(scratch.name) / '_render.html'
+        html_path.parent.mkdir(parents=True, exist_ok=True)
+        html_path.write_text(html_doc)
+
+        page = self._browser.new_page()
+        try:
+            page.goto(html_path.resolve().as_uri())
+            page.wait_for_function("window.__renderDone === true")
+            report = page.evaluate('window.__layoutReport')
+            if analyze:
+                report_path = Path(output).with_suffix('.layout.json')
+                report_path.parent.mkdir(parents=True, exist_ok=True)
+                report_path.write_text(json.dumps(report, indent=2))
+                print(json.dumps(report, indent=2))
+            if report['warnings']:
+                print('Layout warnings: ' + '; '.join(report['warnings']), file=sys.stderr)
+            Path(output).parent.mkdir(parents=True, exist_ok=True)
+            page.pdf(path=output, print_background=True, prefer_css_page_size=True)
+        finally:
+            page.close()
+            if scratch:
+                scratch.cleanup()
+        return report
+
+
+def render(spec, output, keep_html=None, analyze=False):
+    """Render one spec, opening and closing a browser around it."""
+    with Renderer() as renderer:
+        return renderer.render(spec, output, keep_html=keep_html, analyze=analyze)
 
 
 def spec_from_args(args):
